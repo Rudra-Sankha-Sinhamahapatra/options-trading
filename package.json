@@ -5,7 +5,8 @@
     "packages/*",
     "server",
     "price-poller",
-    "ws-backend"
+    "ws-backend",
+    "batch-uploader"
   ],
   "devDependencies": {
     "typescript": "^5"
