@@ -3,7 +3,9 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "server"
+    "server",
+    "price-poller",
+    "ws-backend"
   ],
   "devDependencies": {
     "typescript": "^5"
