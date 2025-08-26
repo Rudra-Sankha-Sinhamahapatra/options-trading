@@ -1,0 +1,23 @@
+{
+  "name": "batch-uploader",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch index.ts",
+    "start": "bun run index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/dotenv": "^8.2.3",
+    "@types/pg": "^8.15.5"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@options-trading/backend-common": "workspace:*",
+    "dotenv": "^17.2.1",
+    "pg": "^8.16.3"
+  }
+}
