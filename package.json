@@ -1,0 +1,11 @@
+{
+  "name": "options-trading",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "server"
+  ],
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}
