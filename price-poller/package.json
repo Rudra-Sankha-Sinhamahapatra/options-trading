@@ -1,0 +1,22 @@
+{
+  "name": "price-poller",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch index.ts",
+    "start": "bun run index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/ws": "^8.18.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "ioredis": "^5.7.0",
+    "ws": "^8.18.3",
+    "@options-trading/backend-common": "workspace:*"
+  }
+}
