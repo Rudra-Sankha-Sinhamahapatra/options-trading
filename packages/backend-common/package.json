@@ -5,13 +5,15 @@
   "private": true,
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/dotenv": "^8.2.3"
+    "@types/dotenv": "^8.2.3",
+    "@types/kafkajs": "^1.9.0"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
     "dotenv": "^17.2.1",
+    "kafkajs": "^2.2.4",
     "zod": "^4.1.3"
   }
 }
