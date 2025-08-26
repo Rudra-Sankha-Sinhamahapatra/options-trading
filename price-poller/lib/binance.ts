@@ -1,68 +1,83 @@
 import WebSocket from "ws"
 import { publish } from "./redis"
+import { sendOHLCToKafka } from "./sendToKafka";
 
-export type BookTicker = {
-  s: string; // symbol
-  b: string; // best bid price
-  B: string; // bid qty
-  a: string; // best ask price
-  A: string; // ask qty
-  u?: number;
-};
 
-export function startBinanceBboPoller(symbols: string[]) {
-    const streams = symbols.map(s => `${s.toLocaleLowerCase()}@bookTicker`).join("/");
-    const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
+export function startBinanceBboPoller(symbols: string[], intervals: string[]) {
+  const bboStreams = symbols.map(symbol => `${symbol.toLowerCase()}@bookTicker`);
+  const bboWsUrl = `wss://stream.binance.com:9443/ws/${bboStreams.join('/')}`;
 
-    let ws: WebSocket | null = null;
-    let keep: NodeJS.Timer | null = null;
+  const klineStreams = symbols.flatMap(symbol => 
+    intervals.map(interval => `${symbol.toLowerCase()}@kline_${interval}`)
+  );
+  const klineWsUrl = `wss://stream.binance.com:9443/ws/${klineStreams.join('/')}`;
 
-    const connect = () => {
-        ws = new WebSocket(url);
+  console.log(`🎯 Tracking symbols: [${symbols.join(', ')}]`);
+  console.log(`⏱️ Tracking intervals: [${intervals.join(', ')}]`);
 
-        ws.on("open",() => {
-        console.log("Binance connected:", symbols.join(", "));
-        keep = setInterval(() => {
-        if(ws?.readyState === ws?.OPEN) ws?.ping();
-        },30_000)
-        });
 
-        ws.on("message", (raw) => {
-            try {
-            const j = JSON.parse(raw.toString());
-            const d: BookTicker = j.data ?? j;
-            if(!d?.s) return;
+  const bboWs = new WebSocket(bboWsUrl);
 
-            console.log(
-                  "bbo",
-              d.s,
-               Date.now(),
-             d.b,
-                d.B,
-               d.a,
-             d.A
-            )
-            publish(`bbo.${d.s}`, {
-                type: "bbo",
-                symbol: d.s,
-                ts: Date.now(),
-                bestBid: d.b,
-                bidQty: d.B,
-                bestAsk: d.a,
-                askQty: d.A
-            })
-            } catch {}
-        });
-            ws.on("close", () => {
-      console.log("❌ Binance disconnected, retrying...");
-      if (keep) clearInterval(keep);
-      setTimeout(connect, 2000);
-    });
+  bboWs.on('open', () => {
+    console.log('✅ Connected to Binance BBO WebSocket');
+  });
 
-    ws.on("error", (e) => {
-      console.error("ws error:", e);
-      ws?.close();
-    });
-    };
-    connect();
+  bboWs.on('message', async(data) => {
+    try {
+      const message = JSON.parse(data.toString());
+      if(message.u && message.s) {
+        const bboData = `bbo ${message.s} ${Date.now()} ${message.b} ${message.B} ${message.a} ${message.A}`;
+        await publish(`bbo.${message.s}`, bboData);
+      }
+    } catch (error) {
+      console.error('❌ Error processing BBO data:', error);
+    }
+  });
+
+  const klineWs = new WebSocket(klineWsUrl);
+
+  klineWs.on('open', ()=> {
+    console.log("✅ Connected to Binance OHLC WebSocket");
+  });
+
+  klineWs.on('message', async (data) => {
+    try {
+      const message = JSON.parse(data.toString());
+      if(message.k) {
+        const kline = message.k;
+
+        if(kline.x) { 
+          const ohlcData = {
+            asset: kline.s,
+            interval: kline.i,
+            openTime: kline.t,
+            closeTime: kline.T,
+            open: kline.o,
+            high: kline.h,
+            low: kline.l,
+            close: kline.c
+          };
+
+          console.log(`🕯️ OHLC ${ohlcData.asset} ${ohlcData.interval}: O:${ohlcData.open} H:${ohlcData.high} L:${ohlcData.low} C:${ohlcData.close}`);
+          
+          await sendOHLCToKafka(ohlcData);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error processing OHLC data:', error);
+    }
+  });
+
+  bboWs.on('error', (error) => console.error('❌ BBO WebSocket error:', error));
+  klineWs.on('error', (error) => console.error('❌ OHLC WebSocket error:', error));
+
+  bboWs.on('close', () => {
+    console.log('🔄 BBO WebSocket closed, reconnecting in 5s...');
+    setTimeout(() => startBinanceBboPoller(symbols, intervals), 5000);
+  });
+
+  klineWs.on('close', () => {
+    console.log('🔄 OHLC WebSocket closed, reconnecting in 5s...');
+    setTimeout(() => startBinanceBboPoller(symbols, intervals), 5000);
+  });
 }
