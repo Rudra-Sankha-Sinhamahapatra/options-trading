@@ -36,8 +36,10 @@ model Order {
   userAmount Decimal
   status OrderStatus @default(OPEN)
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   closedAt DateTime?
+  marketPrice Decimal?
+  closePrice Decimal?
   @@map("orders")
 }
 
