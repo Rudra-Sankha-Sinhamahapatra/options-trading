@@ -1,5 +1,5 @@
 import WebSocket from "ws"
-import { publish } from "./redis"
+import { publish, setValue } from "./redis"
 import { sendOHLCToKafka } from "./sendToKafka";
 
 
@@ -28,6 +28,18 @@ export function startBinanceBboPoller(symbols: string[], intervals: string[]) {
       if(message.u && message.s) {
         const bboData = `bbo ${message.s} ${Date.now()} ${message.b} ${message.B} ${message.a} ${message.A}`;
         await publish(`bbo.${message.s}`, bboData);
+
+           const priceData = {
+          price: parseFloat(message.b), 
+          bid: parseFloat(message.b),
+          ask: parseFloat(message.a),
+          bidQty: parseFloat(message.B),
+          askQty: parseFloat(message.A),
+          timestamp: Date.now(),
+          symbol: message.s
+        };
+
+          await setValue(`price:${message.s}`, priceData);
       }
     } catch (error) {
       console.error('❌ Error processing BBO data:', error);
