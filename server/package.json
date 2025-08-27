@@ -10,11 +10,13 @@
   "dependencies": {
     "@options-trading/backend-common": "workspace:*",
     "@options-trading/db": "workspace:*",
+    "@prisma/client": "^6.15.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "ioredis": "^5.7.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.16.3"
   },
@@ -23,6 +25,7 @@
     "@types/cors": "^2.8.19",
     "@types/dotenv": "^8.2.3",
     "@types/express": "^5.0.3",
+    "@types/ioredis": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.15.5"
   },

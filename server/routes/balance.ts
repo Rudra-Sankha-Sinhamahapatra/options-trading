@@ -1,10 +1,10 @@
 import express from "express";
-import { getBalance, trade } from "../controllers/balance";
+import { getBalance } from "../controllers/balance";
+import { authMiddleware } from "../middleware/auth";
 
 const router = express.Router();
 
-router.get('/', getBalance);
+router.get('/',authMiddleware, getBalance);
 
-router.post('/trade', trade);
 
 export default router;

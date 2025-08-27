@@ -18,7 +18,7 @@ const app: Application = express();
 app.use(express.json());
 
 const corsOptions={
-  origin: NODE_ENV === 'dev'?'http://localhost:3000':'https://otrading.rudrasankha.com',
+  origin: NODE_ENV === 'dev'?'http://localhost:3001':'https://otrading.rudrasankha.com',
   method:['GET','POST','PUT','DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-VERIFY', 'X-MERCHANT-ID'],
   credentials:true
