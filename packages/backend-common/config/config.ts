@@ -1,5 +1,12 @@
 export const config = {
-    dbUrl: process.env.DATABASE_URL,
+    dbUrl: {
+     timescale:{
+        url: process.env.TIMESCALE_URL,
+     },
+     postgres: {
+        url: process.env.DATABASE_URL
+     }
+    },
     server: {
         port: process.env.PORT || "3000",
         nodeenv: process.env.NODE_ENV || "dev",

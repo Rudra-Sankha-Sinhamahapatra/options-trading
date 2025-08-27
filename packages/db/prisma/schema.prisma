@@ -19,5 +19,30 @@ model User {
   name String?
   email String
   password String
+  orders Order[]
 }
 
+model Order {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+
+  type String
+  asset String
+  qty Decimal
+  stopLoss Decimal?
+  takeProfit Decimal?
+
+  userAmount Decimal
+  status OrderStatus @default(OPEN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  closedAt DateTime?
+  @@map("orders")
+}
+
+enum OrderStatus {
+  OPEN 
+  CLOSED 
+  CANCELLED
+}

@@ -1,6 +1,6 @@
 import { consumer, TOPICS } from "@options-trading/backend-common";
 import { batchInsertOHLC, getOHLCStats } from "./lib/batchProcessor";
-import { closeDatabaseConnection } from "./lib/db";
+import { closeDatabaseConnection, setupRetentionPolicy } from "./lib/db";
 
 const BATCH_SIZE = 100;
 const BATCH_TIMEOUT = 5000;
@@ -12,6 +12,7 @@ let batchTimer: Timer | null = null;
 
 console.log("🚀 Starting Batch Uploader Service (Raw SQL)");
 
+await setupRetentionPolicy();
 await consumer.connect();
 await consumer.subscribe({ topics: [TOPICS.OHLC_DATA] });
 

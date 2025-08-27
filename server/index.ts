@@ -6,7 +6,8 @@ import bodyParser from "body-parser";
 import { PORT,NODE_ENV } from "./config";
 import userRouter from "./routes/user";
 import candlesRoute from "./routes/candles"
-
+import balanceRouter from './routes/balance';
+import orderRouter from './routes/order'; 
 
 dotenv.config();
 
@@ -35,6 +36,8 @@ app.get("/", (req: Request, res: Response) => {
 
 app.use("/api/v1/user",userRouter);
 app.use('/api/v1/candles',candlesRoute);
+app.use('/api/v1/balance', balanceRouter); 
+app.use('/api/v1/order', orderRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

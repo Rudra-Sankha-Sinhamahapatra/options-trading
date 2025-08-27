@@ -28,6 +28,14 @@ SELECT create_hypertable('ohlc_data', 'time');
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_ohlc_asset_interval_time ON ohlc_data (asset, interval, time DESC);
 CREATE INDEX IF NOT EXISTS idx_ohlc_time ON ohlc_data (time DESC);
+
+-- Set retention policy to keep data for 30 days
+SELECT add_retention_policy('ohlc_data', INTERVAL '30 days');
+
+-- Check current retention policies
+SELECT * FROM timescaledb_information.jobs 
+WHERE job_type = 'retention';
+
 ```
 
 ## Query Commands

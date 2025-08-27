@@ -2,7 +2,7 @@ import { config } from "@options-trading/backend-common"
 import { Pool } from "pg"
 
 export const pool = new Pool({
-    connectionString: config.dbUrl,
+    connectionString: config.dbUrl.timescale.url,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
