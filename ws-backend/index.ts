@@ -12,6 +12,8 @@ console.log(`WS server running at ws://localhost:${PORT}`);
 
 wss.on("connection",(ws) => {
         console.log("New Client connected");
+        
+        (ws as any).subscribedAssets = new Set<string>();
 
     for(const [symbol, data] of latestBBO.entries()) {
         if(ws.readyState === ws.OPEN) {
@@ -28,6 +30,35 @@ wss.on("connection",(ws) => {
             timestamp: Date.now()
         }))
     }
+    
+    ws.on('message', (message) => {
+        try {
+            const data = JSON.parse(message.toString());
+            console.log('📨 Received client message:', data);
+            
+            if (data.type === 'subscribe' && Array.isArray(data.assets)) {
+                console.log('📡 Client subscribing to assets:', data.assets);
+                data.assets.forEach((asset: string) => {
+                    (ws as any).subscribedAssets.add(asset);
+                });
+                
+                for (const asset of data.assets) {
+                    const latestData = latestBBO.get(asset);
+                    if (latestData && ws.readyState === ws.OPEN) {
+                        ws.send(latestData);
+                        console.log(`📤 Sent latest ${asset} data to subscriber`);
+                    }
+                }
+            } else if (data.type === 'unsubscribe' && Array.isArray(data.assets)) {
+                console.log('📡 Client unsubscribing from assets:', data.assets);
+                data.assets.forEach((asset: string) => {
+                    (ws as any).subscribedAssets.delete(asset);
+                });
+            }
+        } catch (error) {
+            console.error('❌ Error parsing client message:', error);
+        }
+    });
 });
 
 (async()=>{

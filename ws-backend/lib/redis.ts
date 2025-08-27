@@ -1,6 +1,7 @@
+import { config } from "@options-trading/backend-common";
 import Redis from "ioredis";
 
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+const REDIS_URL = config.redis.url || "redis://localhost:6379";
 
 export const redisSub = new Redis(REDIS_URL); 
 
