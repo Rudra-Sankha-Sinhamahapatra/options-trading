@@ -74,6 +74,7 @@
         "dotenv": "^17.2.1",
         "express": "^5.1.0",
         "jsonwebtoken": "^9.0.2",
+        "pg": "^8.16.3",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -81,6 +82,7 @@
         "@types/dotenv": "^8.2.3",
         "@types/express": "^5.0.3",
         "@types/jsonwebtoken": "^9.0.10",
+        "@types/pg": "^8.15.5",
       },
       "peerDependencies": {
         "typescript": "^5",

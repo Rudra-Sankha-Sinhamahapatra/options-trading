@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import { PORT,NODE_ENV } from "./config";
 import userRouter from "./routes/user";
+import candlesRoute from "./routes/candles"
 
 
 dotenv.config();
@@ -33,6 +34,7 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.use("/api/v1/user",userRouter);
+app.use('/api/v1/candles',candlesRoute);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
