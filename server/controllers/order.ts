@@ -49,10 +49,28 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    let currentPrice: number;
+    let executionPrice: number;
+    let bidPrice: number;
+    let askPrice: number;
+
     try {
       const priceInfo = JSON.parse(currentPriceData);
-      currentPrice = priceInfo.price;
+      bidPrice = priceInfo.bid;
+      askPrice = priceInfo.ask;
+
+        if (type === 'buy') {
+        executionPrice = askPrice; 
+      } else {
+        executionPrice = bidPrice; 
+      }
+
+           if (!executionPrice || executionPrice <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid ${type === 'buy' ? 'ask' : 'bid'} price for ${assetSymbol}`
+        });
+      }
+
     } catch (error) {
       return res.status(500).json({
         success: false,
@@ -60,7 +78,8 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const tradeResult = executeTrade(userId, asset, type, qty, usdcAmount);
+    const actualTradeAmount = qty * executionPrice;
+    const tradeResult = executeTrade(userId, asset, type, qty, actualTradeAmount);
 
     if (!tradeResult.success) {
       return res.status(400).json({
@@ -77,9 +96,9 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
         qty,
         stopLoss: stopLoss || null,
         takeProfit: takeProfit || null,
-        userAmount: usdcAmount,
-        marketPrice: currentPrice,
-        closePrice: new Decimal(currentPrice),
+        userAmount: actualTradeAmount,
+        marketPrice: executionPrice,
+        closePrice: new Decimal(executionPrice),
         status: 'CLOSED',
         closedAt: new Date()
       }
@@ -87,28 +106,32 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
 
     console.log(`✅ Order opened: ${type} ${qty} ${asset} for user ${userId}`);
 
-    res.json({
+   res.status(200).json({
       success: true,
+      message: 'Trade executed successfully',
       orderId: order.id,
+      executionPrice: executionPrice,
       balance: tradeResult.balance!,
-      order: {
+      trade: {
         id: order.id,
         type: order.type,
         asset: order.asset,
         qty: Number(order.qty),
-        stopLoss: order.stopLoss ? Number(order.stopLoss) : null,
-        takeProfit: order.takeProfit ? Number(order.takeProfit) : null,
-        userAmount: Number(order.userAmount),
-        marketPrice: currentPrice,
-        status: order.status,
-        createdAt: order.createdAt
+        executionPrice: executionPrice,
+        amount: actualTradeAmount,
+        status: 'CLOSED',
+        executedAt: order.closedAt,
+        priceType: type === 'buy' ? 'ask' : 'bid'
       },
-      meta: {
-        userId,
-        currentPrice,
-        timestamp: new Date().toISOString()
+      priceDetails: {
+        bid: bidPrice,
+        ask: askPrice,
+        spread: askPrice - bidPrice,
+        executionPrice: executionPrice,
+        priceType: type === 'buy' ? 'ask' : 'bid'
       }
     });
+
 
   } catch (error) {
     console.error('❌ Error opening order:', error);

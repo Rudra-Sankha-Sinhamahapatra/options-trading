@@ -154,7 +154,12 @@ export default function MarketsPage() {
       const result = await response.json();
 
       if (result.success) {
-        alert(`Order placed successfully! Order ID: ${result.orderId}`);
+        const executedAt = result.priceDetails?.priceType || 'market';
+        alert(`✅ Trade executed successfully! 
+${result.trade?.type?.toUpperCase()} ${result.trade?.qty} ${orderForm.asset.replace('USDC', '')} 
+at $${result.executionPrice?.toFixed(2)} (${executedAt} price)
+Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
+        
         setOrderForm({ asset: '', type: 'buy', quantity: 0, price: 0 });
         setSelectedAsset(null);
         
@@ -186,6 +191,13 @@ export default function MarketsPage() {
       price,
     });
     setOrderError(null);
+  };
+
+  const getExecutionPrice = (asset: string, type: 'buy' | 'sell') => {
+    const priceData = prices[asset];
+    if (!priceData) return 0;
+    
+    return type === 'buy' ? priceData.ask || 0 : priceData.bid || 0;
   };
 
   if (!mounted) {
@@ -445,11 +457,11 @@ export default function MarketsPage() {
                       value={orderForm.asset}
                       onChange={(e) => {
                         const selectedAsset = e.target.value;
-                        const assetPrice = prices[selectedAsset]?.price || 0;
+                        const executionPrice = getExecutionPrice(selectedAsset, orderForm.type);
                         setOrderForm({ 
                           ...orderForm, 
                           asset: selectedAsset,
-                          price: assetPrice 
+                          price: executionPrice 
                         });
                         setSelectedAsset(selectedAsset);
                         setOrderError(null);
@@ -483,11 +495,31 @@ export default function MarketsPage() {
                         </label>
                         <select
                           value={orderForm.type}
-                          onChange={(e) => setOrderForm({ ...orderForm, type: e.target.value as 'buy' | 'sell' })}
+                          onChange={(e) => {
+                            const newType = e.target.value as 'buy' | 'sell';
+                            const priceData = prices[orderForm.asset];
+                            let newPrice = orderForm.price;
+                            
+                            if (priceData) {
+                              newPrice = newType === 'buy' ? priceData.ask || 0 : priceData.bid || 0;
+                            }
+                            
+                            setOrderForm({ 
+                              ...orderForm, 
+                              type: newType,
+                              price: newPrice
+                            });
+                          }}
                           className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-md text-white"
                         >
-                          <option value="buy">Buy {orderForm.asset.replace('USDC', '')}</option>
-                          <option value="sell">Sell {orderForm.asset.replace('USDC', '')}</option>
+                          <option value="buy">
+                            Buy {orderForm.asset.replace('USDC', '')} 
+                            {typeof prices[orderForm.asset]?.ask === 'number' && ` at $${prices[orderForm.asset]!.ask!.toFixed(2)}`}
+                          </option>
+                          <option value="sell">
+                            Sell {orderForm.asset.replace('USDC', '')}
+                            {prices[orderForm.asset]?.bid && ` at $${prices[orderForm.asset]!.bid!.toFixed(2)}`}
+                          </option>
                         </select>
                       </div>
                       
@@ -581,6 +613,54 @@ export default function MarketsPage() {
                           </div>
                         </div>
                       )}
+                
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Execution Price (USD)
+                        </label>
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={orderForm.price}
+                              onChange={(e) => setOrderForm({ ...orderForm, price: parseFloat(e.target.value) || 0 })}
+                              className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-md text-white"
+                              placeholder="0.00"
+                            />
+                            {prices[orderForm.asset] && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const executionPrice = orderForm.type === 'buy' 
+                                    ? prices[orderForm.asset].ask 
+                                    : prices[orderForm.asset].bid;
+                                  setOrderForm({ ...orderForm, price: executionPrice || 0 });
+                                }}
+                                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs bg-zinc-600 hover:bg-zinc-500 px-2 py-1 rounded text-white"
+                              >
+                                Use {orderForm.type === 'buy' ? 'Ask' : 'Bid'}
+                              </button>
+                            )}
+                          </div>
+                          
+                          {prices[orderForm.asset] && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-400">
+                                {orderForm.type === 'buy' ? 'Ask' : 'Bid'}: $
+                                {orderForm.type === 'buy' 
+                                  ? prices[orderForm.asset].ask?.toFixed(2) || 'N/A'
+                                  : prices[orderForm.asset].bid?.toFixed(2) || 'N/A'
+                                }
+                              </span>
+                              <span className="text-gray-400">
+                                Mid: ${((prices[orderForm.asset].bid! + prices[orderForm.asset].ask!) / 2).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       
                       {orderForm.quantity > 0 && orderForm.price > 0 && (
                         <div className="bg-zinc-800 rounded-md p-3 border border-zinc-600">
@@ -591,9 +671,20 @@ export default function MarketsPage() {
                               <span>{orderForm.quantity} {orderForm.asset.replace('USDC', '')}</span>
                             </div>
                             <div className="flex justify-between text-gray-300">
-                              <span>At price:</span>
+                              <span>At {orderForm.type === 'buy' ? 'ask' : 'bid'} price:</span>
                               <span>${orderForm.price.toFixed(2)}</span>
                             </div>
+                            {prices[orderForm.asset] && (
+                              <div className="flex justify-between text-xs text-gray-400">
+                                <span>Market {orderForm.type === 'buy' ? 'ask' : 'bid'}:</span>
+                                <span>
+                                  ${orderForm.type === 'buy' 
+                                    ? prices[orderForm.asset].ask?.toFixed(2) || 'N/A'
+                                    : prices[orderForm.asset].bid?.toFixed(2) || 'N/A'
+                                  }
+                                </span>
+                              </div>
+                            )}
                             <div className="flex justify-between text-white font-medium border-t border-zinc-600 pt-1">
                               <span>Total:</span>
                               <span>${(orderForm.quantity * orderForm.price).toFixed(2)} USDC</span>
