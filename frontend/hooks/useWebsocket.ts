@@ -37,12 +37,12 @@ const parseBBOData = (message: string): PriceUpdate | null => {
     
     
     if (parts[0] === 'bbo' && parts.length >= 7) {
-      const asset = parts[1]; // ETHUSDC
-      const timestamp = parseInt(parts[2]); // 1756317809549
-      const bid = parseFloat(parts[3]); // 4632.52000000
-      const bidQty = parseFloat(parts[4]); // 26.85180000
-      const ask = parseFloat(parts[5]); // 4632.53000000
-      const askQty = parseFloat(parts[6]); // 0.00240000
+      const asset = parts[1];
+      const timestamp = parseInt(parts[2]); 
+      const bid = parseFloat(parts[3]); 
+      const bidQty = parseFloat(parts[4]); 
+      const ask = parseFloat(parts[5]); 
+      const askQty = parseFloat(parts[6]); 
       
       if (isNaN(timestamp) || isNaN(bid) || isNaN(ask) || isNaN(bidQty) || isNaN(askQty)) {
         console.error('❌ Invalid numeric values in BBO data:', { timestamp, bid, ask, bidQty, askQty });

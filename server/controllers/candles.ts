@@ -30,7 +30,6 @@ export const getCandles = async (req:Request,res:Response) => {
         });
     }
     
-    // Validation for interval
     const validIntervals = ['1m', '5m', '15m', '1h'];
     if (!interval || !validIntervals.includes(interval)) {
         return res.status(400).json({

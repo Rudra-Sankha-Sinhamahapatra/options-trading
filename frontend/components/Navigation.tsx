@@ -16,6 +16,7 @@ export default function Navigation() {
     { href: '/', label: 'Home', icon: TrendingUp },
     { href: '/charts', label: 'Charts', icon: BarChart3 },
     { href: '/markets', label: 'Markets', icon: Store },
+    { href: '/orders', label: 'Orders', icon: Store }, 
   ];
 
   const isActive = (href: string) => pathname === href;

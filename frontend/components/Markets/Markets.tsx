@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useWebSocket } from '@/hooks/useWebsocket';
 import { config } from '@/config/config';
 import Cookies from 'js-cookie';
+import Orders from './Orders';
 
 interface OrderForm {
   asset: string;
@@ -157,7 +158,6 @@ export default function MarketsPage() {
         setOrderForm({ asset: '', type: 'buy', quantity: 0, price: 0 });
         setSelectedAsset(null);
         
-        // Update balance from response
         if (result.balance) {
           setBalance(result.balance);
         }
@@ -206,7 +206,7 @@ export default function MarketsPage() {
   return (
     <main className="min-h-screen bg-black p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header with Connection Status */}
+
         <div className="flex justify-between items-start mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Markets</h1>
@@ -228,7 +228,6 @@ export default function MarketsPage() {
           </div>
         </div>
 
-        {/* WebSocket Error */}
         {wsError && (
           <div className="mb-4 p-3 bg-orange-900/20 border border-orange-500 rounded-md">
             <p className="text-orange-400 text-sm">
@@ -547,7 +546,6 @@ export default function MarketsPage() {
                         </div>
                       </div>
                       
-                      {/* Available Balance Info */}
                       {balance && (
                         <div className="bg-zinc-700 rounded-md p-3">
                           <div className="text-xs text-gray-400 mb-1">Available Balance:</div>
@@ -566,7 +564,6 @@ export default function MarketsPage() {
                               </div>
                             )}
                             
-                            {/* Show max buy/sell amount */}
                             <div className="text-gray-400 text-xs">
                               {orderForm.type === 'buy' && orderForm.price > 0 && (
                                 <>Max: {(balance.usdc.qty / orderForm.price).toFixed(6)} {orderForm.asset.replace('USDC', '')}</>
@@ -585,7 +582,6 @@ export default function MarketsPage() {
                         </div>
                       )}
                       
-                      {/* Order Summary */}
                       {orderForm.quantity > 0 && orderForm.price > 0 && (
                         <div className="bg-zinc-800 rounded-md p-3 border border-zinc-600">
                           <div className="text-sm font-medium text-white mb-2">Order Summary</div>
@@ -633,6 +629,12 @@ export default function MarketsPage() {
             </div>
           </div>
         </div>
+
+        {isAuthenticated && (
+          <div className="mt-8">
+            <Orders limit={5} />
+          </div>
+        )}
       </div>
     </main>
   );
