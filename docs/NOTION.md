@@ -1,0 +1,1 @@
+https://petal-estimate-4e9.notion.site/Exness-25c7dfd107358028ac2bf33ad2d30b4e
