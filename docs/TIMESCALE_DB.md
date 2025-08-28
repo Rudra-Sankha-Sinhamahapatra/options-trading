@@ -153,4 +153,50 @@ SELECT * FROM timescaledb_information.continuous_aggregates;
 -- Check data in views (after some time)
 SELECT COUNT(*) FROM ohlc_5m_view;
 SELECT * FROM ohlc_5m_view WHERE asset = 'BTCUSDC' ORDER BY bucket DESC LIMIT 5;
+
+-- Check all materialized views
+SELECT 'ohlc_1m_view' as view_name, COUNT(*) as row_count FROM ohlc_1m_view
+UNION ALL
+SELECT 'ohlc_5m_view', COUNT(*) FROM ohlc_5m_view  
+UNION ALL
+SELECT 'ohlc_15m_view', COUNT(*) FROM ohlc_15m_view
+UNION ALL
+SELECT 'ohlc_1h_view', COUNT(*) FROM ohlc_1h_view;
+```
+
+## Data Management
+
+### Clear All Data (Keep Structure)
+```sql
+-- Empty the main table (preserves hypertable structure)
+TRUNCATE ohlc_data;
+
+-- Refresh all continuous aggregates to reflect the empty state
+CALL refresh_continuous_aggregate('ohlc_1m_view', NULL, NULL);
+CALL refresh_continuous_aggregate('ohlc_5m_view', NULL, NULL);
+CALL refresh_continuous_aggregate('ohlc_15m_view', NULL, NULL);
+CALL refresh_continuous_aggregate('ohlc_1h_view', NULL, NULL);
+
+
+-- Verify all data is cleared
+SELECT COUNT(*) as main_table_count FROM ohlc_data;
+
+SELECT 'ohlc_1m_view' as view_name, COUNT(*) as row_count FROM ohlc_1m_view
+UNION ALL
+SELECT 'ohlc_5m_view', COUNT(*) FROM ohlc_5m_view  
+UNION ALL
+SELECT 'ohlc_15m_view', COUNT(*) FROM ohlc_15m_view
+UNION ALL
+SELECT 'ohlc_1h_view', COUNT(*) FROM ohlc_1h_view;
+```
+
+## Troubleshooting
+
+### Force Refresh Materialized Views
+```sql
+-- If automatic refresh isn't working, force refresh
+CALL refresh_continuous_aggregate('ohlc_1m_view', INTERVAL '1 week', NULL);
+CALL refresh_continuous_aggregate('ohlc_5m_view', INTERVAL '1 week', NULL);
+CALL refresh_continuous_aggregate('ohlc_15m_view', INTERVAL '1 week', NULL);
+CALL refresh_continuous_aggregate('ohlc_1h_view', INTERVAL '1 week', NULL);
 ```
