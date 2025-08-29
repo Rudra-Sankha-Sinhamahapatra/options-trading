@@ -31,7 +31,7 @@ export const getBalance = async (req: AuthRequest,res: Response) => {
     })
 
     } catch (error) {
-         console.error('❌ Error getting balance:', error);
+         console.error('Error getting balance:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get balance'

@@ -77,7 +77,7 @@ export const authMiddleware = async (
     
     next();
   } catch (error: any) {
-    console.error('❌ Auth middleware error:', error);
+    console.error('Auth middleware error:', error);
     res.status(500).json({
       success: false,
       message: "Authentication error",
@@ -126,7 +126,7 @@ export const optionalAuthMiddleware = async (
     
     next();
   } catch (error: any) {
-    console.error('❌ Optional auth middleware error:', error);
+    console.error('Optional auth middleware error:', error);
     next(); 
   }
 };

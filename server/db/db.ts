@@ -9,9 +9,9 @@ export const pool = new Pool({
 });
 
 pool.on('connect', () => {
-  console.log('✅ Connected to TimescaleDB from server');
+  console.log('  Connected to TimescaleDB from server');
 });
 
 pool.on('error', (err) => {
-  console.error('❌ PostgreSQL pool error:', err);
+  console.error('PostgreSQL pool error:', err);
 });

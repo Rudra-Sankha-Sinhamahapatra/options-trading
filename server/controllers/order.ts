@@ -2,21 +2,28 @@ import type { Response } from "express";
 import prisma from "@options-trading/db";
 import { executeTrade } from "../lib/balance";
 import type { AuthRequest } from "../middleware/auth";
-import { Decimal } from "@prisma/client/runtime/library";
 import { redisSub } from "../lib/redis";
+
+const toScaledInt = (value: number, decimals: number) => BigInt(Math.round(value * Math.pow(10,decimals)));
+
+const fromScaledInt = (raw: bigint | number | null | undefined,
+  decimals: number
+) => raw == null ? null : Number(raw) / Math.pow(10,decimals)
+
+const USD_DECIMALS = 2;
 
 export const openOrder = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
     const { type, asset, qty, stopLoss, takeProfit, usdcAmount } = req.body;
-    
+
     if (!['buy', 'sell'].includes(type)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid type. Must be: buy or sell'
       });
     }
-    
+
     if (!['btc', 'eth', 'sol'].includes(asset)) {
       return res.status(400).json({
         success: false,
@@ -30,7 +37,7 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
         error: 'Quantity must be a positive number'
       });
     }
-    
+
     if (typeof usdcAmount !== 'number' || usdcAmount <= 0) {
       return res.status(400).json({
         success: false,
@@ -41,7 +48,7 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
 
     const assetSymbol = `${asset.toUpperCase()}USDC`;
     const currentPriceData = await redisSub.get(`price:${assetSymbol}`);
-    
+
     if (!currentPriceData) {
       return res.status(400).json({
         success: false,
@@ -49,36 +56,29 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    let executionPrice: number;
-    let bidPrice: number;
-    let askPrice: number;
+    let priceInfo = JSON.parse(currentPriceData);
+    const decimals: number = priceInfo.decimals ?? 0;
+    const scale = Math.pow(10,decimals);
 
-    try {
-      const priceInfo = JSON.parse(currentPriceData);
-      bidPrice = priceInfo.bid;
-      askPrice = priceInfo.ask;
+    const rawBid: number | undefined = priceInfo.sellPrice;
+    const rawAsk: number | undefined = priceInfo.buyPrice;
 
-        if (type === 'buy') {
-        executionPrice = askPrice; 
-      } else {
-        executionPrice = bidPrice; 
-      }
+    if (typeof rawBid !== 'number' || typeof rawAsk !== 'number' || rawBid <= 0 || rawAsk <= 0) {
+      return res.status(400).json({ success: false, error: `Invalid market prices for ${assetSymbol}` });
+    }
 
-           if (!executionPrice || executionPrice <= 0) {
-        return res.status(400).json({
-          success: false,
-          error: `Invalid ${type === 'buy' ? 'ask' : 'bid'} price for ${assetSymbol}`
-        });
-      }
+    const bid = rawBid / scale;
+    const ask = rawAsk / scale;
 
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        error: "Error retrieving current market price"
-      });
+    const rawExecutionPrice = type === 'buy' ? rawAsk : rawBid; 
+    const executionPrice = rawExecutionPrice / scale; 
+
+    if (executionPrice <= 0) {
+      return res.status(400).json({ success: false, error: `Invalid ${type === 'buy' ? 'ask' : 'bid'} price for ${assetSymbol}` });
     }
 
     const actualTradeAmount = qty * executionPrice;
+
     const tradeResult = executeTrade(userId, asset, type, qty, actualTradeAmount);
 
     if (!tradeResult.success) {
@@ -88,25 +88,31 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    const usdcAmountInt = toScaledInt(usdcAmount,USD_DECIMALS);
+
     const order = await prisma.order.create({
       data: {
         userId,
         type,
         asset,
         qty,
-        stopLoss: stopLoss || null,
-        takeProfit: takeProfit || null,
-        userAmount: actualTradeAmount,
-        marketPrice: executionPrice,
-        closePrice: new Decimal(executionPrice),
+        stopLoss:  stopLoss,
+        takeProfit: takeProfit,
+
+        userAmount: usdcAmountInt,
+        userAmountDecimal: USD_DECIMALS,
+
+         marketPrice: BigInt(rawExecutionPrice),
+        closePrice: BigInt(rawExecutionPrice),
+        decimals,
         status: 'CLOSED',
         closedAt: new Date()
       }
     });
 
-    console.log(`✅ Order opened: ${type} ${qty} ${asset} for user ${userId}`);
+    console.log(`  Order opened: ${type} ${qty} ${asset} for user ${userId}`);
 
-   res.status(200).json({
+    res.status(200).json({
       success: true,
       message: 'Trade executed successfully',
       orderId: order.id,
@@ -124,49 +130,62 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
         priceType: type === 'buy' ? 'ask' : 'bid'
       },
       priceDetails: {
-        bid: bidPrice,
-        ask: askPrice,
-        spread: askPrice - bidPrice,
-        executionPrice: executionPrice,
+        bid, ask,
+        spread: ask - bid,
+        executionPrice,
         priceType: type === 'buy' ? 'ask' : 'bid'
-      }
+      },
+      meta: {decimals}
     });
 
 
   } catch (error) {
-    console.error('❌ Error opening order:', error);
+    console.error('Error opening order:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to open order'
     });
   }
-};
+}
 
 export const getOrders = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    
+
     const orders = await prisma.order.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' }
     });
 
+    const shaped = orders.map(o => {
+      const d = o.decimals ?? 0;
+      const userDec = o.userAmountDecimal ?? USD_DECIMALS;
+
+      return {
+        id: o.id,
+        type: o.type,
+        asset: o.asset,
+        qty: Number(o.qty),
+
+        stopLoss: o.stopLoss != null ? fromScaledInt(o.stopLoss as unknown as bigint, d) : null,
+        takeProfit: o.takeProfit != null ? fromScaledInt(o.takeProfit as unknown as bigint, d) : null,
+        
+        userAmount: o.userAmount != null ? fromScaledInt(o.userAmount as unknown as bigint, userDec) : null,
+        userAmountDecimal: userDec,
+
+        marketPrice: o.marketPrice != null ? fromScaledInt(o.marketPrice as unknown as bigint, d) : null,
+        closePrice:  o.closePrice  != null ? fromScaledInt(o.closePrice  as unknown as bigint, d) : null,
+
+        status: o.status,
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt,
+        closedAt: o.closedAt
+      }
+    })
+
     res.json({
       success: true,
-      orders: orders.map(order => ({
-        id: order.id,
-        type: order.type,
-        asset: order.asset,
-        qty: Number(order.qty),
-        stopLoss: order.stopLoss ? Number(order.stopLoss) : null,
-        takeProfit: order.takeProfit ? Number(order.takeProfit) : null,
-        userAmount: Number(order.userAmount),
-        marketPrice: order.marketPrice ? Number(order.marketPrice) : null,
-        status: order.status,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-        closedAt: order.closedAt
-      })),
+      orders: shaped,
       meta: {
         userId,
         count: orders.length,
@@ -174,95 +193,10 @@ export const getOrders = async (req: AuthRequest, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error getting orders:', error);
+    console.error('Error getting orders:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get orders'
     });
   }
-};
-
-export const closeOrder = async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.userId!;
-    const { orderId } = req.body;
-    
-    if (!orderId) {
-      return res.status(400).json({
-        success: false,
-        error: 'orderId is required'
-      });
-    }
-    
-    const order = await prisma.order.findFirst({
-      where: {
-        id: orderId,
-        userId: userId,
-        status: 'OPEN'
-      }
-    });
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found or already closed'
-      });
-    }
-
-    const assetSymbol = `${order.asset.toUpperCase()}USDC`;
-    const currentPriceData = await redisSub.get(`price:${assetSymbol}`);
-    let closePrice = null;
-    
-    if (currentPriceData) {
-      try {
-        const priceInfo = JSON.parse(currentPriceData);
-        closePrice = priceInfo.price;
-      } catch (error) {
-        console.error('Error parsing close price:', error);
-      }
-    }
-    
-    const closedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: 'CLOSED',
-        closePrice: closePrice,
-        closedAt: new Date()
-      }
-    });
-
-    console.log(`✅ Order closed: ${order.type} ${order.qty} ${order.asset} for user ${userId}`);
-    
-    res.json({
-      success: true,
-      order: {
-        id: closedOrder.id,
-        type: closedOrder.type,
-        asset: closedOrder.asset,
-        qty: Number(closedOrder.qty),
-        stopLoss: closedOrder.stopLoss ? Number(closedOrder.stopLoss) : null,
-        takeProfit: closedOrder.takeProfit ? Number(closedOrder.takeProfit) : null,
-        userAmount: Number(closedOrder.userAmount),
-        marketPrice: closedOrder.marketPrice ? Number(closedOrder.marketPrice) : null,
-        closePrice: closedOrder.closePrice ? Number(closedOrder.closePrice) : null,
-        status: closedOrder.status,
-        createdAt: closedOrder.createdAt,
-        updatedAt: closedOrder.updatedAt,
-        closedAt: closedOrder.closedAt
-      },
-      meta: {
-        userId,
-        closePrice,
-        timestamp: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('❌ Error closing order:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to close order'
-    });
-  }
-};
-
-
+}

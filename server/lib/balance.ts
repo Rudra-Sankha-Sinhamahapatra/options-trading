@@ -16,7 +16,7 @@ const userBalances = new Map<string, UserBalance>();
 export function initializeUserBalance(userId: string): UserBalance {
     const defaultBalance: UserBalance = {
         userId,
-        usdc: { qty: 1000 },
+        usdc: { qty: 5000 },
         btc: { qty: 0, type: 'buy' },
         eth: { qty: 0, type: 'buy' },
         sol: { qty: 0, type: 'buy' },
@@ -89,7 +89,7 @@ export function executeTrade(
         }
 
         userBalances.set(userId, balance);
-        console.log(`🔄 Trade executed for user ${userId}: ${tradeType} ${assetQty} ${asset.toUpperCase()} for ${usdcAmount} USDC`);
+        console.log(`Trade executed for user ${userId}: ${tradeType} ${assetQty} ${asset.toUpperCase()} for ${usdcAmount} USDC`);
         return { success: true, balance };
     } catch (error) {
         return {
