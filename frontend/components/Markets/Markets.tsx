@@ -93,7 +93,6 @@ export default function MarketsPage() {
     return {
       asset,
       price: priceData?.price || null,
-      change24h: priceData?.change24h || null,
       bid: priceData?.bid || null,
       ask: priceData?.ask || null,
       spread: priceData?.bid && priceData?.ask ? priceData.ask - priceData.bid : null,
@@ -155,7 +154,7 @@ export default function MarketsPage() {
 
       if (result.success) {
         const executedAt = result.priceDetails?.priceType || 'market';
-        alert(`✅ Trade executed successfully! 
+        alert(`Trade executed successfully! 
 ${result.trade?.type?.toUpperCase()} ${result.trade?.qty} ${orderForm.asset.replace('USDC', '')} 
 at $${result.executionPrice?.toFixed(2)} (${executedAt} price)
 Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
@@ -555,6 +554,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                               onChange={(e) => setOrderForm({ ...orderForm, price: parseFloat(e.target.value) || 0 })}
                               className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-md text-white"
                               placeholder="0.00"
+                              disabled
                             />
                             {prices[orderForm.asset] && (
                               <button
@@ -628,6 +628,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                               onChange={(e) => setOrderForm({ ...orderForm, price: parseFloat(e.target.value) || 0 })}
                               className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-md text-white"
                               placeholder="0.00"
+                              disabled
                             />
                             {prices[orderForm.asset] && (
                               <button

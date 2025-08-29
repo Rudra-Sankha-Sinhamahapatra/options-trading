@@ -174,9 +174,9 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
           <div className="space-y-3">
             {orders.map((order) => {
               const executionTime = formatDateTime(order.executedAt || order.closedAt || order.createdAt);
-              const isProfit = order.closePrice && order.marketPrice 
-                ? (order.type === 'buy' ? order.closePrice > order.marketPrice : order.marketPrice > order.closePrice)
-                : null;
+              // const isProfit = order.closePrice && order.marketPrice 
+              //   ? (order.type === 'buy' ? order.closePrice > order.marketPrice : order.marketPrice > order.closePrice)
+              //   : null;
               
               return (
                 <div
@@ -210,9 +210,14 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
                       
                       <div className="text-sm text-gray-400 mt-1">
                         {order.qty.toFixed(order.asset === 'btc' ? 8 : order.asset === 'eth' ? 6 : 4)} {formatAssetName(order.asset)} 
-                        {order.marketPrice && (
-                          <span> at ${order.marketPrice.toFixed(2)}</span>
+                        {order.userAmount && (
+                          <span> at ${order.userAmount.toFixed(2)}</span>
                         )}
+                        {
+                          order.marketPrice && (
+                            <span> at MarketPrice ${order.marketPrice.toFixed(2)} / ${order.asset}</span>
+                          )
+                        }
                       </div>
                       
                       <div className="text-xs text-gray-500 mt-1">
@@ -226,7 +231,7 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
                       ${order.userAmount.toFixed(2)}
                     </div>
                     
-                    {order.status === 'CLOSED' && order.closePrice && order.marketPrice && (
+                    {/* {order.status === 'CLOSED' && order.closePrice && order.marketPrice && (
                       <div className={`text-sm ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
                         {isProfit ? '+' : ''}$
                         {(order.type === 'buy' 
@@ -235,7 +240,7 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
                         ).toFixed(2)}
                       </div>
                     )}
-                    
+                     */}
                     <div className="text-xs text-gray-500">
                       ID: {order.id.slice(0, 8)}...
                     </div>

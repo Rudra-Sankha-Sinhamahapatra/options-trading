@@ -7,7 +7,6 @@ interface PriceUpdate {
   asset: string;
   price: number;
   timestamp: number;
-  change24h?: number;
   bid?: number;
   ask?: number;
   bidQty?: number;
@@ -45,7 +44,7 @@ const parseBBOData = (message: string): PriceUpdate | null => {
       const askQty = parseFloat(parts[6]); 
       
       if (isNaN(timestamp) || isNaN(bid) || isNaN(ask) || isNaN(bidQty) || isNaN(askQty)) {
-        console.error('❌ Invalid numeric values in BBO data:', { timestamp, bid, ask, bidQty, askQty });
+        console.error('Invalid numeric values in BBO data:', { timestamp, bid, ask, bidQty, askQty });
         return null;
       }
       
@@ -61,15 +60,15 @@ const parseBBOData = (message: string): PriceUpdate | null => {
         askQty,
       };
       
-      console.log('✅ Successfully parsed price update:', priceUpdate);
+      console.log('  Successfully parsed price update:', priceUpdate);
       return priceUpdate;
     } else {
-      console.log('❌ Invalid BBO format - expected "bbo SYMBOL TIMESTAMP BID BIDQTY ASK ASKQTY", got:', parts);
+      console.log('Invalid BBO format - expected "bbo SYMBOL TIMESTAMP BID BIDQTY ASK ASKQTY", got:', parts);
       return null;
     }
     
   } catch (error) {
-    console.error('❌ Error parsing BBO data:', error, 'Message was:', message);
+    console.error('Error parsing BBO data:', error, 'Message was:', message);
     return null;
   }
 };
@@ -79,7 +78,7 @@ const notifyPriceUpdate = () => {
     try {
       callback({ ...currentPrices }); 
     } catch (error) {
-      console.error('❌ Error in price update callback:', error);
+      console.error('Error in price update callback:', error);
     }
   });
 };
@@ -90,7 +89,7 @@ const notifyConnection = (connected: boolean) => {
     try {
       callback(connected);
     } catch (error) {
-      console.error('❌ Error in connection callback:', error);
+      console.error('Error in connection callback:', error);
     }
   });
 };
@@ -101,7 +100,7 @@ const notifyError = (error: string | null) => {
     try {
       callback(error);
     } catch (error) {
-      console.error('❌ Error in error callback:', error);
+      console.error('Error in error callback:', error);
     }
   });
 };
@@ -124,7 +123,7 @@ const connectWebSocket = () => {
     wsInstance = new WebSocket(wsUrl);
 
     wsInstance.onopen = () => {
-      console.log('✅ WebSocket connected successfully');
+      console.log('  WebSocket connected successfully');
       isConnectedGlobal = true;
       currentError = null;
       notifyConnection(true);
@@ -132,94 +131,110 @@ const connectWebSocket = () => {
     };
 
     wsInstance.onmessage = (event) => {
-      const rawMessage = event.data;
+      const rawMessage = typeof event.data === 'string' ? event.data : '';
       console.log('📨 Received raw WebSocket message:', rawMessage);
-      
+    
       try {
-        let priceUpdate: PriceUpdate | null = null;
-        
-        if (typeof rawMessage === 'string' && (rawMessage.trim().startsWith('{') || rawMessage.trim().startsWith('['))) {
+        let handled = false;
+    
+        if (rawMessage && (rawMessage.trim().startsWith('{') || rawMessage.trim().startsWith('['))) {
           try {
             const data = JSON.parse(rawMessage);
-            console.log('📊 Successfully parsed JSON data:', data);
-            
-            if (data.type === 'connected') {
-              console.log('🎉 Received connection confirmation:', data.message);
-              return;
+            console.log('Parsed JSON:', data);
+    
+            if (data?.type === 'connected') return;
+    
+            if (Array.isArray(data.price_updates)) {
+              for (const upd of data.price_updates) {
+                if (
+                  typeof upd.symbol === 'string' &&
+                  typeof upd.decimals === 'number' &&
+                  (typeof upd.buyPrice === 'number' || typeof upd.sellPrice === 'number')
+                ) {
+                  const scale = Math.pow(10, upd.decimals);
+                  const bid = typeof upd.sellPrice === 'number' ? upd.sellPrice / scale : undefined;
+                  const ask = typeof upd.buyPrice === 'number' ? upd.buyPrice / scale : undefined;
+                  const currentPrice = typeof upd.price === 'number' ? upd.price/scale : undefined;
+    
+                  const u: PriceUpdate = {
+                    asset: upd.symbol,
+                    price: currentPrice || upd.price,
+                    timestamp: Date.now(),
+                    bid,
+                    ask,
+                  };
+    
+                  currentPrices = { ...currentPrices, [u.asset]: u };
+                }
+              }
+              notifyPriceUpdate();
+              handled = true;
             }
-            
-            if (data.type === 'price_update') {
-              priceUpdate = {
-                asset: data.asset,
-                price: data.price,
-                timestamp: data.timestamp,
-                change24h: data.change24h,
-                bid: data.bid,
-                ask: data.ask,
-                bidQty: data.bidQty,
-                askQty: data.askQty
+    
+            if (
+              !handled &&
+              typeof data.symbol === 'string' &&
+              typeof data.price === 'number' &&
+              typeof data.decimals === 'number'
+            ) {
+              const scale = Math.pow(10, data.decimals);
+              const bid = typeof data.sellPrice === 'number' ? data.sellPrice / scale : undefined;
+              const ask = typeof data.buyPrice === 'number' ? data.buyPrice / scale : undefined;
+              const mid = ( (ask ?? 0) + (bid ?? 0) ) / 2;
+    
+              const u: PriceUpdate = {
+                asset: data.symbol,
+                price: (data.price ?? mid ?? 0) / scale, 
+                timestamp: data.timestamp ?? Date.now(),
+                bid,
+                ask,
               };
-              console.log('💰 Extracted price update from JSON:', priceUpdate);
+    
+              currentPrices = { ...currentPrices, [u.asset]: u };
+              notifyPriceUpdate();
+              handled = true;
             }
-          } catch (jsonError) {
-            console.log('❌ JSON parsing failed:', jsonError);
-
+          } catch (jsonErr) {
+            console.log('JSON parsing failed, will try legacy BBO:', jsonErr);
           }
         }
-        
-        if (!priceUpdate && typeof rawMessage === 'string') {
-          console.log('🔄 Attempting BBO parsing...');
-          priceUpdate = parseBBOData(rawMessage);
+    
+        if (!handled && rawMessage) {
+          const parsed = parseBBOData(rawMessage);
+          if (parsed) {
+            currentPrices = { ...currentPrices, [parsed.asset]: parsed };
+            notifyPriceUpdate();
+            handled = true;
+          }
         }
-        
-        if (priceUpdate) {
-          console.log('✅ Successfully parsed price update:', priceUpdate);
-          console.log('💰 Processing price update for asset:', priceUpdate.asset);
-          console.log('💰 Price data:', { 
-            price: priceUpdate.price, 
-            bid: priceUpdate.bid, 
-            ask: priceUpdate.ask 
-          });
-          
-          currentPrices = {
-            ...currentPrices,
-            [priceUpdate.asset]: priceUpdate
-          };
-          
-          console.log('💰 Updated global prices. Total assets:', Object.keys(currentPrices).length);
-          console.log('💰 Current prices object:', currentPrices);
-          
-          notifyPriceUpdate();
-        } else {
-          console.log('❌ Could not parse message as JSON or BBO format:', rawMessage);
-          console.log('❌ Raw message length:', rawMessage.length);
-          console.log('❌ Raw message first 100 chars:', rawMessage.substring(0, 100));
+    
+        if (!handled) {
+          console.log('Unrecognized WS message. First 120 chars:', rawMessage.slice(0, 120));
         }
-        
       } catch (err) {
-        console.error('❌ Unexpected error processing WebSocket message:', err);
+        console.error('Unexpected error processing WebSocket message:', err);
       }
     };
-
+    
     wsInstance.onclose = (event) => {
-      console.log('❌ WebSocket disconnected - Code:', event.code, 'Reason:', event.reason);
+      console.log('WebSocket disconnected - Code:', event.code, 'Reason:', event.reason);
       isConnectedGlobal = false;
       notifyConnection(false);
 
       setTimeout(() => {
-        console.log('🔄 Attempting to reconnect WebSocket...');
+        console.log('Attempting to reconnect WebSocket...');
         connectWebSocket();
       }, 2000);
     };
 
     wsInstance.onerror = (error) => {
-      console.error('❌ WebSocket connection error:', error);
+      console.error('WebSocket connection error:', error);
       currentError = 'WebSocket connection error';
       notifyError(currentError);
     };
 
   } catch (err) {
-    console.error('❌ Failed to create WebSocket connection:', err);
+    console.error('Failed to create WebSocket connection:', err);
     currentError = 'Failed to establish WebSocket connection';
     notifyError(currentError);
   }
@@ -284,7 +299,7 @@ export function useWebSocket(): UseWebSocketReturn {
   }, []);
 
   const subscribe = useCallback((assets: string[]) => {
-    console.log('📡 Subscribe called with assets:', assets);
+    console.log('  Subscribe called with assets:', assets);
     
     if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
       const subscribeMessage = JSON.stringify({
@@ -292,15 +307,15 @@ export function useWebSocket(): UseWebSocketReturn {
         assets
       });
       
-      console.log('📡 Sending subscribe message:', subscribeMessage);
+      console.log('Sending subscribe message:', subscribeMessage);
       wsInstance.send(subscribeMessage);
     } else {
-      console.log('❌ Cannot subscribe - WebSocket not ready. State:', wsInstance?.readyState);
+      console.log('Cannot subscribe - WebSocket not ready. State:', wsInstance?.readyState);
     }
   }, []);
 
   const unsubscribe = useCallback((assets: string[]) => {
-    console.log('📡 Unsubscribe called with assets:', assets);
+    console.log('  Unsubscribe called with assets:', assets);
     
     if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
       const unsubscribeMessage = JSON.stringify({
@@ -308,10 +323,10 @@ export function useWebSocket(): UseWebSocketReturn {
         assets
       });
       
-      console.log('📡 Sending unsubscribe message:', unsubscribeMessage);
+      console.log('  Sending unsubscribe message:', unsubscribeMessage);
       wsInstance.send(unsubscribeMessage);
     } else {
-      console.log('❌ Cannot unsubscribe - WebSocket not ready. State:', wsInstance?.readyState);
+      console.log('Cannot unsubscribe - WebSocket not ready. State:', wsInstance?.readyState);
     }
   }, []);
 
