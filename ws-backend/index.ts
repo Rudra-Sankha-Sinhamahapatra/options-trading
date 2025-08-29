@@ -37,7 +37,7 @@ wss.on("connection",(ws) => {
             console.log('📨 Received client message:', data);
             
             if (data.type === 'subscribe' && Array.isArray(data.assets)) {
-                console.log('📡 Client subscribing to assets:', data.assets);
+                console.log('  Client subscribing to assets:', data.assets);
                 data.assets.forEach((asset: string) => {
                     (ws as any).subscribedAssets.add(asset);
                 });
@@ -46,17 +46,17 @@ wss.on("connection",(ws) => {
                     const latestData = latestBBO.get(asset);
                     if (latestData && ws.readyState === ws.OPEN) {
                         ws.send(latestData);
-                        console.log(`📤 Sent latest ${asset} data to subscriber`);
+                        console.log(`Sent latest ${asset} data to subscriber`);
                     }
                 }
             } else if (data.type === 'unsubscribe' && Array.isArray(data.assets)) {
-                console.log('📡 Client unsubscribing from assets:', data.assets);
+                console.log('Client unsubscribing from assets:', data.assets);
                 data.assets.forEach((asset: string) => {
                     (ws as any).subscribedAssets.delete(asset);
                 });
             }
         } catch (error) {
-            console.error('❌ Error parsing client message:', error);
+            console.error('Error parsing client message:', error);
         }
     });
 });
@@ -64,11 +64,11 @@ wss.on("connection",(ws) => {
 (async()=>{
     console.log("Subscribing to Redis pattern: bbo.*");
     await redisSub.psubscribe("bbo.*");
-    console.log("✅ Successfully subscribed to bbo.* pattern");
+    console.log("Successfully subscribed to bbo.* pattern");
 })();
 
 redisSub.on("psubscribe", (pattern, count) => {
-    console.log(`✅ Subscribed to pattern: ${pattern}, total subscriptions: ${count}`);
+    console.log(`Subscribed to pattern: ${pattern}, total subscriptions: ${count}`);
 });
 
 redisSub.on("pmessage",(_pattern,channel,payload) => {
@@ -80,14 +80,15 @@ redisSub.on("pmessage",(_pattern,channel,payload) => {
 
     for (const client of wss.clients) {
         if(client.readyState === client.OPEN) {
-            client.send(payload);
+            const priceUpdates = [JSON.parse(payload)];
+            client.send(JSON.stringify({ price_updates: priceUpdates }));
         }
     }
 });
 
 setInterval(() => {
-    console.log(`🔄 Status - Connected clients: ${wss.clients.size}, Stored symbols: ${latestBBO.size}`);
+    console.log(`Status - Connected clients: ${wss.clients.size}, Stored symbols: ${latestBBO.size}`);
     if (latestBBO.size > 0) {
-        console.log(`📈 Symbols: [${Array.from(latestBBO.keys()).join(', ')}]`);
+        console.log(`Symbols: [${Array.from(latestBBO.keys()).join(', ')}]`);
     }
 }, 30000);
