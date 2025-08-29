@@ -8,12 +8,10 @@ export async function publish(channel: string, data: unknown) {
     return redisPub.publish(channel,JSON.stringify(data))
 }
 
-export async function setValue(channel: string, data: unknown) {
+export async function setValue(channel: string, data: unknown,ttl: number) {
     try {
-          await redisPub.set(channel, typeof data === 'string' ? data : JSON.stringify(data));
-
-        await redisPub.expire(channel, 60); 
+          await redisPub.set(channel, typeof data === 'string' ? data : JSON.stringify(data),'EX',30);
     } catch (error) {
-          console.error(`❌ Redis error for ${channel}:`, error);
+          console.error(`Redis error for ${channel}:`, error);
     }
 }

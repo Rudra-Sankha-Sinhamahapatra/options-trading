@@ -13,8 +13,8 @@ export async function sendOHLCToKafka(ohlcData: any) {
             ]
         });
         
-      console.log(`📤 Sent to Kafka: ${ohlcData.asset} ${ohlcData.interval}`);
+      console.log(`Sent to Kafka: ${ohlcData.asset} ${ohlcData.interval}`);
   } catch (error) {
-    console.error("❌ Error sending OHLC to Kafka:", error);
+    console.error("Error sending OHLC to Kafka:", error);
   }
 }

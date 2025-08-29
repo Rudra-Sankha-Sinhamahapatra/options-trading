@@ -3,93 +3,83 @@ import { publish, setValue } from "./redis"
 import { sendOHLCToKafka } from "./sendToKafka";
 
 
-export function startBinanceBboPoller(symbols: string[], intervals: string[]) {
-  const bboStreams = symbols.map(symbol => `${symbol.toLowerCase()}@bookTicker`);
-  const bboWsUrl = `wss://stream.binance.com:9443/ws/${bboStreams.join('/')}`;
+function detectDecimals(priceStr: string) : number {
+  if (!priceStr.includes(".")) return 0;
+  return priceStr.split(".")[1]!.length
+}
 
-  const klineStreams = symbols.flatMap(symbol => 
-    intervals.map(interval => `${symbol.toLowerCase()}@kline_${interval}`)
-  );
-  const klineWsUrl = `wss://stream.binance.com:9443/ws/${klineStreams.join('/')}`;
+export function startBinanceTradePoller(symbols: string[]) {
+ const tradeStreams = symbols.map(symbol => `${symbol.toLocaleLowerCase()}@trade`);
+ const tradeWsUrl = `wss://stream.binance.com:9443/stream?streams=${tradeStreams.join('/')}`;
 
-  console.log(`🎯 Tracking symbols: [${symbols.join(', ')}]`);
-  console.log(`⏱️ Tracking intervals: [${intervals.join(', ')}]`);
+ console.log(`Tracking trade streams: [${symbols.join(', ')}]`);
+ const tradeWs = new WebSocket(tradeWsUrl);
 
+  tradeWs.on('open', () => {
+    console.log("Connected to Biance Trade Websocket");
+  })
 
-  const bboWs = new WebSocket(bboWsUrl);
-
-  bboWs.on('open', () => {
-    console.log('✅ Connected to Binance BBO WebSocket');
-  });
-
-  bboWs.on('message', async(data) => {
+  tradeWs.on("message", async (data) => {
     try {
-      const message = JSON.parse(data.toString());
-      if(message.u && message.s) {
-        const bboData = `bbo ${message.s} ${Date.now()} ${message.b} ${message.B} ${message.a} ${message.A}`;
-        await publish(`bbo.${message.s}`, bboData);
+      const msg = JSON.parse(data.toString());
 
-           const priceData = {
-          price: parseFloat(message.b), 
-          bid: parseFloat(message.b),
-          ask: parseFloat(message.a),
-          bidQty: parseFloat(message.B),
-          askQty: parseFloat(message.A),
-          timestamp: Date.now(),
-          symbol: message.s
-        };
+      const trade = msg.data;
 
-          await setValue(`price:${message.s}`, priceData);
-      }
-    } catch (error) {
-      console.error('❌ Error processing BBO data:', error);
-    }
-  });
-
-  const klineWs = new WebSocket(klineWsUrl);
-
-  klineWs.on('open', ()=> {
-    console.log("✅ Connected to Binance OHLC WebSocket");
-  });
-
-  klineWs.on('message', async (data) => {
-    try {
-      const message = JSON.parse(data.toString());
-      if(message.k) {
-        const kline = message.k;
-
-        if(kline.x) { 
-          const ohlcData = {
-            asset: kline.s,
-            interval: kline.i,
-            openTime: kline.t,
-            closeTime: kline.T,
-            open: kline.o,
-            high: kline.h,
-            low: kline.l,
-            close: kline.c
-          };
-
-          console.log(`🕯️ OHLC ${ohlcData.asset} ${ohlcData.interval}: O:${ohlcData.open} H:${ohlcData.high} L:${ohlcData.low} C:${ohlcData.close}`);
-          
-          await sendOHLCToKafka(ohlcData);
+      if(trade?.p && trade?.s) {
+        const tradeData = {
+          symbol: trade.s,
+          price: parseFloat(trade.p),
+          qty: parseFloat(trade.q),
+          tradeId: trade.t,
+          timestamp: trade.T,
+          isBuyerMarket: trade.m
         }
+
+        const decimals = detectDecimals(trade.p);
+        const scaledPrice = Math.round(tradeData.price * 10 ** decimals);
+       
+        const SPREAD_TOTAL = 0.01 //1 %
+        const half = SPREAD_TOTAL / 2; //0.5%  on each side
+
+        const buyPrice = Math.round(scaledPrice * (1 + half));
+        const sellPrice = Math.round(scaledPrice * (1 - half));
+
+        const priceUpdate = {
+          symbol: tradeData.symbol,
+          price: scaledPrice,
+          buyPrice,
+          sellPrice,
+          decimals,
+          timestamp: tradeData.timestamp
+        }
+
+        await publish(`bbo.${tradeData.symbol}`, priceUpdate)
+        await setValue(`price:${tradeData.symbol}`, priceUpdate, 30)
+
+        await sendOHLCToKafka({
+          kind:'tick',
+          asset: tradeData.symbol,
+          interval: "tick", 
+          openTime: tradeData.timestamp,
+          closeTime: tradeData.timestamp,
+          open: scaledPrice,
+          high: scaledPrice,
+          low: scaledPrice,
+          close: scaledPrice,
+          decimals
+        })
+
+        console.log(`Trade ${tradeData.symbol}: ${tradeData.price} qty:${tradeData.qty}`)
       }
-    } catch (error) {
-      console.error('❌ Error processing OHLC data:', error);
+    } catch (err) {
+      console.error("Error processing trade data:", err)
     }
-  });
 
-  bboWs.on('error', (error) => console.error('❌ BBO WebSocket error:', error));
-  klineWs.on('error', (error) => console.error('❌ OHLC WebSocket error:', error));
+  })
 
-  bboWs.on('close', () => {
-    console.log('🔄 BBO WebSocket closed, reconnecting in 5s...');
-    setTimeout(() => startBinanceBboPoller(symbols, intervals), 5000);
-  });
-
-  klineWs.on('close', () => {
-    console.log('🔄 OHLC WebSocket closed, reconnecting in 5s...');
-    setTimeout(() => startBinanceBboPoller(symbols, intervals), 5000);
-  });
+  tradeWs.on("error", (err) => console.error("Trade WS error:", err))
+  tradeWs.on("close", () => {
+    console.log("Trade WS closed, reconnecting in 5s...")
+    setTimeout(() => startBinanceTradePoller(symbols), 5000)
+  })
 }
