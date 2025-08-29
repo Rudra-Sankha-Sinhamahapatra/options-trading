@@ -15,12 +15,16 @@ interface OrderForm {
   price: number;
 }
 
+interface TokenWire { qty: string; decimals: number }
+
 interface UserBalance {
-  usdc: { qty: number; locked: number };
-  btc: { qty: number; locked: number };
-  eth: { qty: number; locked: number };
-  sol: { qty: number; locked: number };
+  usdc: TokenWire;
+  btc: TokenWire;
+  eth: TokenWire;
+  sol: TokenWire;
 }
+
+const humanBalance = (t: TokenWire) => Number(t.qty) / Math.pow(10, t.decimals);
 
 const SUPPORTED_ASSETS = ['BTCUSDC', 'ETHUSDC', 'SOLUSDC'];
 
@@ -39,7 +43,7 @@ export default function MarketsPage() {
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  
+
   const BACKEND_URL = config.backend.url;
 
   useEffect(() => {
@@ -52,7 +56,7 @@ export default function MarketsPage() {
     }
   }, [isAuthenticated, mounted]);
 
-  useEffect(() => {    
+  useEffect(() => {
     if (isConnected && mounted) {
       setTimeout(() => {
         subscribe(SUPPORTED_ASSETS);
@@ -62,7 +66,7 @@ export default function MarketsPage() {
 
   const fetchBalance = async () => {
     if (!isAuthenticated) return;
-    
+
     setBalanceLoading(true);
     try {
       const token = Cookies.get('token');
@@ -75,7 +79,7 @@ export default function MarketsPage() {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         setBalance(result.balance);
       } else {
@@ -103,7 +107,7 @@ export default function MarketsPage() {
 
   const handleOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!isAuthenticated) {
       setOrderError('Please sign in to place orders');
       return;
@@ -116,10 +120,10 @@ export default function MarketsPage() {
 
     setOrderLoading(true);
     setOrderError(null);
-    
+
     try {
       const token = Cookies.get('token');
-      
+
       if (!token) {
         setOrderError('Authentication required');
         return;
@@ -142,7 +146,7 @@ export default function MarketsPage() {
         },
         body: JSON.stringify({
           type: orderForm.type,
-          asset: assetCode, 
+          asset: assetCode,
           qty: orderForm.quantity,
           usdcAmount: totalAmount,
           stopLoss: null,
@@ -158,10 +162,10 @@ export default function MarketsPage() {
 ${result.trade?.type?.toUpperCase()} ${result.trade?.qty} ${orderForm.asset.replace('USDC', '')} 
 at $${result.executionPrice?.toFixed(2)} (${executedAt} price)
 Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
-        
+
         setOrderForm({ asset: '', type: 'buy', quantity: 0, price: 0 });
         setSelectedAsset(null);
-        
+
         if (result.balance) {
           setBalance(result.balance);
         }
@@ -181,7 +185,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
       setOrderError('Price data not available');
       return;
     }
-    
+
     setSelectedAsset(asset);
     setOrderForm({
       asset,
@@ -195,7 +199,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
   const getExecutionPrice = (asset: string, type: 'buy' | 'sell') => {
     const priceData = prices[asset];
     if (!priceData) return 0;
-    
+
     return type === 'buy' ? priceData.ask || 0 : priceData.bid || 0;
   };
 
@@ -223,7 +227,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
             <h1 className="text-3xl font-bold text-white mb-2">Markets</h1>
             <p className="text-gray-400">Trade cryptocurrencies with real-time pricing</p>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             {isConnected ? (
               <div className="flex items-center space-x-2 text-green-500">
@@ -258,61 +262,41 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                 <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
               )}
             </div>
-            
+
             {balance ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-zinc-700 rounded-lg p-3">
                   <div className="text-sm text-gray-400">USDC</div>
                   <div className="text-lg font-semibold text-green-500">
-                    {balance.usdc.qty.toLocaleString()}
+                    {humanBalance(balance.usdc)}
                   </div>
-                  {balance.usdc.locked > 0 && (
-                    <div className="text-xs text-yellow-500">
-                      Locked: {balance.usdc.locked.toLocaleString()}
-                    </div>
-                  )}
                 </div>
-                
+
                 <div className="bg-zinc-700 rounded-lg p-3">
                   <div className="text-sm text-gray-400">BTC</div>
                   <div className="text-lg font-semibold text-orange-500">
-                    {balance.btc.qty.toFixed(8)}
+                    {humanBalance(balance.btc)}
                   </div>
-                  {balance.btc.locked > 0 && (
-                    <div className="text-xs text-yellow-500">
-                      Locked: {balance.btc.locked.toFixed(8)}
-                    </div>
-                  )}
                 </div>
-                
+
                 <div className="bg-zinc-700 rounded-lg p-3">
                   <div className="text-sm text-gray-400">ETH</div>
                   <div className="text-lg font-semibold text-blue-500">
-                    {balance.eth.qty.toFixed(6)}
+                    {humanBalance(balance.eth)}
                   </div>
-                  {balance.eth.locked > 0 && (
-                    <div className="text-xs text-yellow-500">
-                      Locked: {balance.eth.locked.toFixed(6)}
-                    </div>
-                  )}
                 </div>
-                
+
                 <div className="bg-zinc-700 rounded-lg p-3">
                   <div className="text-sm text-gray-400">SOL</div>
                   <div className="text-lg font-semibold text-purple-500">
-                    {balance.sol.qty.toFixed(4)}
+                    {humanBalance(balance.sol)}
                   </div>
-                  {balance.sol.locked > 0 && (
-                    <div className="text-xs text-yellow-500">
-                      Locked: {balance.sol.locked.toFixed(4)}
-                    </div>
-                  )}
                 </div>
               </div>
             ) : (
               <div className="text-gray-400">Loading balance...</div>
             )}
-            
+
             <p className="text-sm text-gray-400 mt-4">Welcome back, {user.name}</p>
           </div>
         )}
@@ -324,7 +308,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
               <div className="px-6 py-4 border-b border-zinc-700">
                 <h2 className="text-xl font-semibold text-white">Market Overview</h2>
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-zinc-700">
@@ -362,13 +346,13 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                             )}
                           </div>
                         </td>
-                        
+
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           {market.price ? (
                             <div className="text-sm font-medium text-white">
-                              ${market.price.toLocaleString(undefined, { 
-                                minimumFractionDigits: 2, 
-                                maximumFractionDigits: 2 
+                              ${market.price.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
                               })}
                             </div>
                           ) : (
@@ -378,7 +362,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                             </div>
                           )}
                         </td>
-                        
+
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           {market.bid && market.ask ? (
                             <div className="text-xs text-gray-300">
@@ -391,7 +375,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                             </div>
                           )}
                         </td>
-                        
+
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           {market.spread ? (
                             <div className="text-sm text-gray-300">
@@ -403,16 +387,15 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                             </div>
                           )}
                         </td>
-                        
+
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <button
                             onClick={() => openOrderForm(market.asset, market.price)}
                             disabled={!isAuthenticated || !market.price}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                              isAuthenticated && market.price
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${isAuthenticated && market.price
                                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                                 : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                            }`}
+                              }`}
                           >
                             {market.price ? 'Trade' : 'Loading...'}
                           </button>
@@ -428,12 +411,12 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
           <div className="lg:col-span-1">
             <div className="bg-zinc-950 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Place Order</h3>
-              
+
               {!isAuthenticated ? (
                 <div className="text-center py-8">
                   <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-400 mb-4">Sign in to start trading</p>
-                  <a 
+                  <a
                     href="/signin"
                     className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                   >
@@ -447,7 +430,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                       <p className="text-red-400 text-sm">{orderError}</p>
                     </div>
                   )}
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Select Asset
@@ -457,10 +440,10 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                       onChange={(e) => {
                         const selectedAsset = e.target.value;
                         const executionPrice = getExecutionPrice(selectedAsset, orderForm.type);
-                        setOrderForm({ 
-                          ...orderForm, 
+                        setOrderForm({
+                          ...orderForm,
                           asset: selectedAsset,
-                          price: executionPrice 
+                          price: executionPrice
                         });
                         setSelectedAsset(selectedAsset);
                         setOrderError(null);
@@ -485,7 +468,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                       </div>
                     )}
                   </div>
-                  
+
                   {orderForm.asset && (
                     <>
                       <div>
@@ -498,13 +481,13 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                             const newType = e.target.value as 'buy' | 'sell';
                             const priceData = prices[orderForm.asset];
                             let newPrice = orderForm.price;
-                            
+
                             if (priceData) {
                               newPrice = newType === 'buy' ? priceData.ask || 0 : priceData.bid || 0;
                             }
-                            
-                            setOrderForm({ 
-                              ...orderForm, 
+
+                            setOrderForm({
+                              ...orderForm,
                               type: newType,
                               price: newPrice
                             });
@@ -512,7 +495,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                           className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-md text-white"
                         >
                           <option value="buy">
-                            Buy {orderForm.asset.replace('USDC', '')} 
+                            Buy {orderForm.asset.replace('USDC', '')}
                             {typeof prices[orderForm.asset]?.ask === 'number' && ` at $${prices[orderForm.asset]!.ask!.toFixed(2)}`}
                           </option>
                           <option value="sell">
@@ -521,7 +504,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                           </option>
                         </select>
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
                           Quantity
@@ -540,7 +523,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                           {orderForm.asset === 'SOLUSDC' && 'Min: 0.01 SOL'}
                         </div>
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
                           Price (USD)
@@ -566,7 +549,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                               </button>
                             )}
                           </div>
-                          
+
                           {prices[orderForm.asset] && (
                             <div className="flex justify-between text-xs text-gray-400">
                               <span>Market: ${prices[orderForm.asset].price.toFixed(2)}</span>
@@ -577,35 +560,36 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                           )}
                         </div>
                       </div>
-                      
+
                       {balance && (
                         <div className="bg-zinc-700 rounded-md p-3">
                           <div className="text-xs text-gray-400 mb-1">Available Balance:</div>
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             {orderForm.type === 'buy' ? (
                               <div className="text-green-500">
-                                <span className="font-medium">USDC:</span> {balance.usdc.qty.toLocaleString()}
+                                <span className="font-medium">USDC:</span> {humanBalance(balance.usdc).toLocaleString()}
                               </div>
                             ) : (
                               <div className="text-blue-500">
                                 <span className="font-medium">{orderForm.asset.replace('USDC', '')}:</span> {
-                                  orderForm.asset === 'BTCUSDC' ? balance.btc.qty.toFixed(8) :
-                                  orderForm.asset === 'ETHUSDC' ? balance.eth.qty.toFixed(6) :
-                                  balance.sol.qty.toFixed(4)
+                                  orderForm.asset === 'BTCUSDC' ? humanBalance(balance.btc).toLocaleString() :
+                                    orderForm.asset === 'ETHUSDC' ? humanBalance(balance.eth).toLocaleString() :
+                                      humanBalance(balance.sol).toLocaleString()
                                 }
                               </div>
                             )}
-                            
+
                             <div className="text-gray-400 text-xs">
                               {orderForm.type === 'buy' && orderForm.price > 0 && (
-                                <>Max: {(balance.usdc.qty / orderForm.price).toFixed(6)} {orderForm.asset.replace('USDC', '')}</>
+                                <>Max: {(humanBalance(balance.usdc) / orderForm.price).toFixed(6)} {orderForm.asset.replace('USDC', '')}</>
                               )}
                               {orderForm.type === 'sell' && (
                                 <>
                                   Max: {
-                                    orderForm.asset === 'BTCUSDC' ? balance.btc.qty.toFixed(8) :
-                                    orderForm.asset === 'ETHUSDC' ? balance.eth.qty.toFixed(6) :
-                                    balance.sol.qty.toFixed(4)
+                                    orderForm.asset === 'BTCUSDC' ? humanBalance(balance.btc).toFixed(8) :
+                                      orderForm.asset === 'ETHUSDC' ? humanBalance(balance.eth).toFixed(6) :
+                                        humanBalance(balance.sol).toFixed(4)
+
                                   }
                                 </>
                               )}
@@ -613,7 +597,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                           </div>
                         </div>
                       )}
-                
+
 
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -634,8 +618,8 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const executionPrice = orderForm.type === 'buy' 
-                                    ? prices[orderForm.asset].ask 
+                                  const executionPrice = orderForm.type === 'buy'
+                                    ? prices[orderForm.asset].ask
                                     : prices[orderForm.asset].bid;
                                   setOrderForm({ ...orderForm, price: executionPrice || 0 });
                                 }}
@@ -645,12 +629,12 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                               </button>
                             )}
                           </div>
-                          
+
                           {prices[orderForm.asset] && (
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-400">
                                 {orderForm.type === 'buy' ? 'Ask' : 'Bid'}: $
-                                {orderForm.type === 'buy' 
+                                {orderForm.type === 'buy'
                                   ? prices[orderForm.asset].ask?.toFixed(2) || 'N/A'
                                   : prices[orderForm.asset].bid?.toFixed(2) || 'N/A'
                                 }
@@ -662,7 +646,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                           )}
                         </div>
                       </div>
-                      
+
                       {orderForm.quantity > 0 && orderForm.price > 0 && (
                         <div className="bg-zinc-800 rounded-md p-3 border border-zinc-600">
                           <div className="text-sm font-medium text-white mb-2">Order Summary</div>
@@ -679,7 +663,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                               <div className="flex justify-between text-xs text-gray-400">
                                 <span>Market {orderForm.type === 'buy' ? 'ask' : 'bid'}:</span>
                                 <span>
-                                  ${orderForm.type === 'buy' 
+                                  ${orderForm.type === 'buy'
                                     ? prices[orderForm.asset].ask?.toFixed(2) || 'N/A'
                                     : prices[orderForm.asset].bid?.toFixed(2) || 'N/A'
                                   }
@@ -693,16 +677,15 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="pt-4">
                         <button
                           type="submit"
                           disabled={orderLoading || !orderForm.quantity || !orderForm.price}
-                          className={`w-full py-3 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                            orderForm.type === 'buy'
+                          className={`w-full py-3 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${orderForm.type === 'buy'
                               ? 'bg-green-600 hover:bg-green-700 disabled:bg-green-600/50'
                               : 'bg-red-600 hover:bg-red-700 disabled:bg-red-600/50'
-                          } text-white`}
+                            } text-white`}
                         >
                           {orderLoading ? (
                             <div className="flex items-center justify-center space-x-2">

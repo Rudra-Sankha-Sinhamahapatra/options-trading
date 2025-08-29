@@ -3,6 +3,7 @@ import prisma from "@options-trading/db";
 import { executeTrade } from "../lib/balance";
 import type { AuthRequest } from "../middleware/auth";
 import { redisSub } from "../lib/redis";
+import { sendJsonBigInt } from "../utils/jsonbigint";
 
 const toScaledInt = (value: number, decimals: number) => BigInt(Math.round(value * Math.pow(10,decimals)));
 
@@ -110,9 +111,9 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    console.log(`  Order opened: ${type} ${qty} ${asset} for user ${userId}`);
+    console.log(`Order opened: ${type} ${qty} ${asset} for user ${userId}`);
 
-    res.status(200).json({
+      sendJsonBigInt(res,{
       success: true,
       message: 'Trade executed successfully',
       orderId: order.id,

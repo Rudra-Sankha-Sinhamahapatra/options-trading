@@ -1,25 +1,29 @@
-interface AssetBalance {
-    qty: number;
-    type: 'buy' | 'sell';
+interface TokenBalance {
+    qty: bigint;
+    decimals: number;
 }
 
 interface UserBalance {
     userId: string;
-    usdc: { qty: number };
-    btc: AssetBalance;
-    eth: AssetBalance;
-    sol: AssetBalance;
+    usdc: TokenBalance;
+    btc: TokenBalance;
+    eth: TokenBalance;
+    sol: TokenBalance;
 }
+
+const toScaledInt = (value: number, decimals: number): bigint =>
+  BigInt(Math.round(value * Math.pow(10, decimals)));
+
 
 const userBalances = new Map<string, UserBalance>();
 
 export function initializeUserBalance(userId: string): UserBalance {
     const defaultBalance: UserBalance = {
         userId,
-        usdc: { qty: 5000 },
-        btc: { qty: 0, type: 'buy' },
-        eth: { qty: 0, type: 'buy' },
-        sol: { qty: 0, type: 'buy' },
+        usdc: { qty: BigInt(500000), decimals: 2 }, // $5000
+        btc: { qty: BigInt(0), decimals: 8 },
+        eth: { qty: BigInt(0), decimals: 8 },
+        sol: { qty: BigInt(0), decimals: 8 },
     };
 
     userBalances.set(userId, defaultBalance);
@@ -43,11 +47,8 @@ export function updateAssetBalance(
 ): UserBalance {
     const balance = getUserBalance(userId);
 
-    if (asset === 'usdc') {
-        balance.usdc.qty = qty;
-    } else {
-        balance[asset] = { qty, type: type || 'buy' };
-    }
+    const decimals = balance[asset].decimals;
+    balance[asset].qty = toScaledInt(qty, decimals);
 
     userBalances.set(userId, balance);
     console.log(`📊 Updated ${asset} balance for user ${userId}: ${qty} (${type || 'N/A'})`);
@@ -64,32 +65,28 @@ export function executeTrade(
     const balance = getUserBalance(userId);
 
     try {
+        const assetDecimals = balance[asset].decimals;
+        const usdcDecimals = balance.usdc.decimals;
+
+        const assetQtyInt = toScaledInt(assetQty,assetDecimals);
+        const usdcAmountInt = toScaledInt(usdcAmount,usdcDecimals);
+
         if (tradeType === 'buy') {
-            if (balance.usdc.qty < usdcAmount) {
-                return {
-                    success: false,
-                    error: `Insufficient USDC balance. Required: ${usdcAmount}, Available: ${balance.usdc.qty}`
-                };
+            if(balance.usdc.qty < usdcAmount) {
+                return { success: false, error: `Insufficient USDC balance` };
             }
-
-            balance.usdc.qty -= usdcAmount;
-            balance[asset].qty += assetQty;
-            balance[asset].type = 'buy'
+            balance.usdc.qty -= usdcAmountInt;
+            balance[asset].qty += assetQtyInt
         } else {
-            if (balance[asset].qty < assetQty) {
-                return {
-                    success: false,
-                    error: `Insufficient ${asset.toUpperCase()} balance. Required: ${assetQty}, Available: ${balance[asset].qty}`
-                };
+            if(balance[asset].qty < assetQtyInt) {
+                 return { success: false, error: `Insufficient ${asset.toUpperCase()} balance` };
             }
-
-            balance[asset].qty -= assetQty;
-            balance.usdc.qty += usdcAmount;
-            balance[asset].type = 'sell';
+            balance[asset].qty -= assetQtyInt;
+            balance.usdc.qty += usdcAmountInt;
         }
 
-        userBalances.set(userId, balance);
-        console.log(`Trade executed for user ${userId}: ${tradeType} ${assetQty} ${asset.toUpperCase()} for ${usdcAmount} USDC`);
+        userBalances.set(userId,balance);
+        console.log(`Trade executed: ${tradeType} ${assetQty} ${asset.toUpperCase()} for ${usdcAmount} USDC`);
         return { success: true, balance };
     } catch (error) {
         return {
