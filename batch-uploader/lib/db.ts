@@ -9,11 +9,11 @@ export const pool = new Pool({
 });
 
 pool.on('connect', () => {
-  console.log('✅ Connected to TimescaleDB');
+  console.log('  Connected to TimescaleDB');
 });
 
 pool.on('error', (err) => {
-  console.error('❌ PostgreSQL pool error:', err);
+  console.error('PostgreSQL pool error:', err);
 });
 
 pool.on('remove', (client) => {
@@ -23,9 +23,9 @@ pool.on('remove', (client) => {
 export async function closeDatabaseConnection() {
  try {
     await pool.end();
-    console.log('✅ Database connection closed gracefully');
+    console.log('  Database connection closed gracefully');
   } catch (error) {
-    console.error('❌ Error closing database connection:', error);
+    console.error('Error closing database connection:', error);
   }
 }
 
@@ -36,9 +36,9 @@ export async function setupRetentionPolicy() {
         `);
         
         if (extensionCheck.rows.length === 0) {
-            console.log('⚠️ TimescaleDB extension not found, enabling it...');
+            console.log('TimescaleDB extension not found, enabling it...');
             await pool.query('CREATE EXTENSION IF NOT EXISTS timescaledb;');
-            console.log('✅ TimescaleDB extension enabled');
+            console.log('  TimescaleDB extension enabled');
         }
 
         let checkQuery;
@@ -54,7 +54,7 @@ export async function setupRetentionPolicy() {
                 await pool.query(`
                     SELECT add_retention_policy('ohlc_data', INTERVAL '30 days');
                 `);
-                console.log('✅ Added 30-day retention policy to ohlc_data');
+                console.log('  Added 30-day retention policy to ohlc_data');
             } else {
                 console.log('Retention policy already exists for ohlc_data');
             }
@@ -64,17 +64,17 @@ export async function setupRetentionPolicy() {
                 await pool.query(`
                     SELECT add_retention_policy('ohlc_data', INTERVAL '30 days');
                 `);
-                console.log('✅ Added 30-day retention policy to ohlc_data (fallback method)');
+                console.log('Added 30-day retention policy to ohlc_data (fallback method)');
             } catch (addError:any) {
                 if (addError.message.includes('already exists') || addError.message.includes('already has')) {
-                    console.log('ℹ️ Retention policy already exists for ohlc_data');
+                    console.log('Retention policy already exists for ohlc_data');
                 } else {
                     throw addError;
                 }
             }
         }
     } catch (error:any) {
-        console.error('❌ Error setting up retention policy:', error.message);
+        console.error('Error setting up retention policy:', error.message);
     }
 }
 
@@ -85,11 +85,11 @@ export async function testConnection() {
       const client = await pool.connect();
       await client.query('SELECT NOW()');
       client.release();
-      console.log('✅ Database connection test successful');
+      console.log('  Database connection test successful');
       return true;
     } catch (error) {
       retries--;
-      console.error(`❌ Database connection test failed. Retries left: ${retries}`);
+      console.error(`Database connection test failed. Retries left: ${retries}`);
       if (retries > 0) {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
@@ -99,6 +99,6 @@ export async function testConnection() {
 }
 
 testConnection().catch(error => {
-  console.error('❌ Failed to establish database connection:', error);
+  console.error('Failed to establish database connection:', error);
   process.exit(1);
 });

@@ -1,124 +1,52 @@
-import { consumer, TOPICS } from "@options-trading/backend-common";
-import { batchInsertOHLC, getOHLCStats } from "./lib/batchProcessor";
-import { closeDatabaseConnection, setupRetentionPolicy } from "./lib/db";
+import { consumer, TOPICS } from "@options-trading/backend-common"
+import { batchInsertTicks, type TickRow } from "./lib/batchProcessor"
 
-const BATCH_SIZE = 100;
-const BATCH_TIMEOUT = 5000;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; 
+const BATCH: TickRow[] = []
+const BATCH_SIZE = 50
+const BATCH_TIMEOUT_MS = 5000
+let timer: NodeJS.Timeout | null = null
 
-let batch: any[] = [];
-let batchTimer: Timer | null = null;
-
-console.log("🚀 Starting Batch Uploader Service (Raw SQL)");
-
-await setupRetentionPolicy();
-await consumer.connect();
-await consumer.subscribe({ topics: [TOPICS.OHLC_DATA] });
-
-console.log(`✅ Connected to Kafka, consuming from topic: ${TOPICS.OHLC_DATA}`);
-
-
-async function retryWithBackoff<T>(
-fn: () => Promise<T>,
-maxRetries: number = MAX_RETRIES,
-baseDelay: number = RETRY_DELAY
-): Promise<T> {
-   let lastError: Error;
-
-   for (let attempt = 1; attempt <= maxRetries; attempt ++) {
+function scheduleFlush() {
+  if (timer) return
+  timer = setTimeout(async () => {
     try {
-        return await fn();
-    } catch (error) {
-        lastError = error as Error;
-
-        if(attempt === maxRetries) {
-            throw lastError;
-        }
-        const delay = baseDelay * Math.pow(2,attempt - 1);
-         console.log(`⚠️ Attempt ${attempt} failed, retrying in ${delay}ms...`);
-            console.log(`   Error: ${lastError.message}`);
-
-            await new Promise(resolve => setTimeout(resolve, delay));
+      if (BATCH.length) {
+        const copy = BATCH.splice(0, BATCH.length)
+        await batchInsertTicks(copy)
+      }
+    } finally {
+      timer = null
     }
-   }
-   throw lastError!;
+  }, BATCH_TIMEOUT_MS)
 }
 
-async function processBatch() {
-    if (batch.length === 0) return;
-
-    console.log(`Processing batch of ${batch.length} OHLC records`);
-
-    try {
-        const insertedCount = await batchInsertOHLC([...batch]);
-        console.log(`✅ Successfully inserted ${insertedCount} records into TimescaleDB`);
-        batch = [];
-    } catch (error) {
-        console.error("❌ Error processing batch:", error);
-       
-    }
-    batchTimer = null;
-}
+await consumer.connect()
+await consumer.subscribe({ topics: [TOPICS.OHLC_DATA] })
 
 await consumer.run({
-    eachMessage: async({ topic, partition, message }) => {
-        console.log(`🔍 DEBUG: Received message from topic: ${topic}`);
-        console.log(`🔍 DEBUG: Message key: ${message.key?.toString()}`);
-        console.log(`🔍 DEBUG: Message value: ${message.value?.toString()}`);
-        
-        try {
-            const ohlcData = JSON.parse(message.value?.toString() || '{}');
+  eachMessage: async ({ message }) => {
+    if (!message.value) return
+    const p = JSON.parse(message.value.toString())
 
-            console.log(`📨 Parsed OHLC: ${JSON.stringify(ohlcData)}`);
+    const isTick = p?.kind === "tick" || p?.interval === "tick"
+    if (!isTick) return
 
-            batch.push(ohlcData);
-            console.log(`📦 Current batch size: ${batch.length}/${BATCH_SIZE}`);
-
-            if(batch.length >= BATCH_SIZE) {
-                console.log(`🚀 Batch size reached, processing...`);
-                if(batchTimer) {
-                    clearTimeout(batchTimer);
-                    batchTimer = null;
-                }
-                await processBatch();
-            }
-            else if(!batchTimer) {
-                console.log(`⏰ Setting batch timer for ${BATCH_TIMEOUT}ms`);
-                batchTimer = setTimeout(processBatch, BATCH_TIMEOUT);
-            }
-        } catch (error) {
-            console.error("❌ Error processing message:", error);
-            console.error("❌ Raw message:", message.value?.toString());
-        }
+    const row: TickRow = {
+      time: new Date(p.ts ?? p.closeTime),         
+      asset: p.symbol ?? p.asset,
+      price: p.price ?? p.close,                  
+      qty: p.qty ?? 0,                           
+      decimals: p.decimals
     }
-});
 
-setInterval(async() => {
-    try {
-        const stats = await retryWithBackoff(async () => {
-         return await getOHLCStats();
-        },2,500)
-        console.log("OHLC Data Statistics: ");
-          stats.forEach(stat => {
-      console.log(`   ${stat.asset} ${stat.interval}: ${stat.total_candles} candles (${stat.earliest_candle} to ${stat.latest_candle})`);
-    });
+    BATCH.push(row)
 
-    } catch (error) {
-          console.error("❌ Error fetching stats:", error);
+    if (BATCH.length >= BATCH_SIZE) {
+      const copy = BATCH.splice(0, BATCH.length)
+      await batchInsertTicks(copy)
+      return
     }
-}, 30000);
 
-process.on('SIGINT', async () => {
-  console.log('🛑 Shutting down batch uploader...');
-
-  if (batch.length > 0) {
-    console.log(`📦 Processing final batch of ${batch.length} records`);
-    await processBatch();
+    scheduleFlush()
   }
-  
-  await consumer.disconnect();
-  await closeDatabaseConnection();
-  process.exit(0);
-});
-
+})
