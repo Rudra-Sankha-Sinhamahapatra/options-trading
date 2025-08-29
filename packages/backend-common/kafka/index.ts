@@ -15,7 +15,7 @@ export const producer = kafka.producer({
     transactionTimeout: 3000,
 })
 
-export const consumer = kafka.consumer({ groupId: "options-trading-group "});
+export const consumer = kafka.consumer({ groupId: "options-trading-group"});
 
 export const TOPICS = {
     OHLC_DATA: 'ohlc-data',
@@ -28,7 +28,7 @@ export async function initKafkaProducer() {
     if(!isProducerConnected) {
         await producer.connect();
         isProducerConnected = true;
-     console.log("✅ Kafka producer connected");
+     console.log("  Kafka producer connected");
   }
   return producer;
 }
