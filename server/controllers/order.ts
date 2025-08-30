@@ -5,11 +5,11 @@ import type { AuthRequest } from "../middleware/auth";
 import { redisSub } from "../lib/redis";
 import { sendJsonBigInt } from "../utils/jsonbigint";
 
-const toScaledInt = (value: number, decimals: number) => BigInt(Math.round(value * Math.pow(10,decimals)));
+const toScaledInt = (value: number, decimals: number) => BigInt(Math.round(value * Math.pow(10, decimals)));
 
 const fromScaledInt = (raw: bigint | number | null | undefined,
   decimals: number
-) => raw == null ? null : Number(raw) / Math.pow(10,decimals)
+) => raw == null ? null : Number(raw) / Math.pow(10, decimals)
 
 const USD_DECIMALS = 2;
 
@@ -59,7 +59,7 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
 
     let priceInfo = JSON.parse(currentPriceData);
     const decimals: number = priceInfo.decimals ?? 0;
-    const scale = Math.pow(10,decimals);
+    const scale = Math.pow(10, decimals);
 
     const rawBid: number | undefined = priceInfo.sellPrice;
     const rawAsk: number | undefined = priceInfo.buyPrice;
@@ -71,8 +71,8 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
     const bid = rawBid / scale;
     const ask = rawAsk / scale;
 
-    const rawExecutionPrice = type === 'buy' ? rawAsk : rawBid; 
-    const executionPrice = rawExecutionPrice / scale; 
+    const rawExecutionPrice = type === 'buy' ? rawAsk : rawBid;
+    const executionPrice = rawExecutionPrice / scale;
 
     if (executionPrice <= 0) {
       return res.status(400).json({ success: false, error: `Invalid ${type === 'buy' ? 'ask' : 'bid'} price for ${assetSymbol}` });
@@ -89,7 +89,7 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const usdcAmountInt = toScaledInt(usdcAmount,USD_DECIMALS);
+    const usdcAmountInt = toScaledInt(usdcAmount, USD_DECIMALS);
 
     const order = await prisma.order.create({
       data: {
@@ -97,13 +97,13 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
         type,
         asset,
         qty,
-        stopLoss:  stopLoss,
+        stopLoss: stopLoss,
         takeProfit: takeProfit,
 
         userAmount: usdcAmountInt,
         userAmountDecimal: USD_DECIMALS,
 
-         marketPrice: BigInt(rawExecutionPrice),
+        marketPrice: BigInt(rawExecutionPrice),
         closePrice: BigInt(rawExecutionPrice),
         decimals,
         status: 'CLOSED',
@@ -113,7 +113,7 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
 
     console.log(`Order opened: ${type} ${qty} ${asset} for user ${userId}`);
 
-      sendJsonBigInt(res,{
+    sendJsonBigInt(res, {
       success: true,
       message: 'Trade executed successfully',
       orderId: order.id,
@@ -136,7 +136,7 @@ export const openOrder = async (req: AuthRequest, res: Response) => {
         executionPrice,
         priceType: type === 'buy' ? 'ask' : 'bid'
       },
-      meta: {decimals}
+      meta: { decimals }
     });
 
 
@@ -161,7 +161,6 @@ export const getOrders = async (req: AuthRequest, res: Response) => {
     const shaped = orders.map(o => {
       const d = o.decimals ?? 0;
       const userDec = o.userAmountDecimal ?? USD_DECIMALS;
-
       return {
         id: o.id,
         type: o.type,
@@ -170,17 +169,21 @@ export const getOrders = async (req: AuthRequest, res: Response) => {
 
         stopLoss: o.stopLoss != null ? fromScaledInt(o.stopLoss as unknown as bigint, d) : null,
         takeProfit: o.takeProfit != null ? fromScaledInt(o.takeProfit as unknown as bigint, d) : null,
-        
+
         userAmount: o.userAmount != null ? fromScaledInt(o.userAmount as unknown as bigint, userDec) : null,
         userAmountDecimal: userDec,
 
         marketPrice: o.marketPrice != null ? fromScaledInt(o.marketPrice as unknown as bigint, d) : null,
-        closePrice:  o.closePrice  != null ? fromScaledInt(o.closePrice  as unknown as bigint, d) : null,
+        closePrice: o.closePrice != null ? fromScaledInt(o.closePrice as unknown as bigint, d) : null,
 
         status: o.status,
         createdAt: o.createdAt,
         updatedAt: o.updatedAt,
-        closedAt: o.closedAt
+        closedAt: o.closedAt,
+        margin: o.margin != null ? o.margin.toString() : null,
+        marginDecimal: o.marginDecimal || null,
+        leverage: o.leverage != null ? Number(o.leverage) : null,
+        pnl: o.pnl != null ? o.pnl.toString() : null
       }
     })
 

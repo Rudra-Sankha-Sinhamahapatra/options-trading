@@ -8,12 +8,12 @@ import userRouter from "./routes/user";
 import candlesRoute from "./routes/candles"
 import balanceRouter from './routes/balance';
 import orderRouter from './routes/order'; 
+import tradeRouter from './routes/trade';
+import { watchPrices } from "./services/calculatePnL";
 
 dotenv.config();
 
-
 const app: Application = express();
-
 
 app.use(express.json());
 
@@ -38,7 +38,9 @@ app.use("/api/v1/user",userRouter);
 app.use('/api/v1/candles',candlesRoute);
 app.use('/api/v1/balance', balanceRouter); 
 app.use('/api/v1/order', orderRouter);
+app.use('/api/v1/trade', tradeRouter);
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server is running on http://localhost:${PORT}`);
+    watchPrices().catch(err => console.error("Price watcher crashed:", err));
 });
