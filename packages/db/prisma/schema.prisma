@@ -29,14 +29,21 @@ model Order {
 
   type String
   asset String
-  qty Decimal
+  
+  qty Decimal?
   stopLoss BigInt?
   takeProfit BigInt?
 
   userAmount BigInt?
   userAmountDecimal Int?
 
+  margin BigInt?
+  marginDecimal Int?
+  leverage Int?
+  pnl BigInt?
+
   status OrderStatus @default(OPEN)
+  ordertype OrderType @default(SPOT)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   closedAt DateTime?
@@ -52,4 +59,9 @@ enum OrderStatus {
   OPEN 
   CLOSED 
   CANCELLED
+}
+
+enum OrderType {
+  SPOT
+  LEVARAGE
 }
