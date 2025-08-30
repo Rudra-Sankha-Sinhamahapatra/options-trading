@@ -7,22 +7,10 @@ import { useWebSocket } from '@/hooks/useWebsocket';
 import { config } from '@/config/config';
 import Cookies from 'js-cookie';
 import Orders from './Orders';
+import { LeverageForm } from './LeverageForm';
+import { OrderForm, TokenWire, UserBalance } from '@/types/market';
 
-interface OrderForm {
-  asset: string;
-  type: 'buy' | 'sell';
-  quantity: number;
-  price: number;
-}
-
-interface TokenWire { qty: string; decimals: number }
-
-interface UserBalance {
-  usdc: TokenWire;
-  btc: TokenWire;
-  eth: TokenWire;
-  sol: TokenWire;
-}
+type Mode = "spot" | "leverage";
 
 const humanBalance = (t: TokenWire) => Number(t.qty) / Math.pow(10, t.decimals);
 
@@ -43,6 +31,7 @@ export default function MarketsPage() {
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [mode,setMode] = useState<Mode>('spot');
 
   const BACKEND_URL = config.backend.url;
 
@@ -410,6 +399,25 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
 
           <div className="lg:col-span-1">
             <div className="bg-zinc-950 rounded-lg p-6">
+            <div className='flex mb-4 border-b border-zinc-700'>
+             <button
+             onClick={() => setMode('spot')}
+             className={`flex-1 py-2 text-center ${
+              mode === 'spot' ? 'text-white border-b-2 border-blue-600' : 'text-gray-400'
+             }`}
+             >
+            Spot
+             </button>
+                         <button
+                onClick={() => setMode("leverage")}
+                className={`flex-1 py-2 text-center ${
+                  mode === "leverage" ? "text-white border-b-2 border-green-600" : "text-gray-400"
+                }`}
+              >
+                Leverage
+              </button>
+
+            </div>
               <h3 className="text-lg font-semibold text-white mb-4">Place Order</h3>
 
               {!isAuthenticated ? (
@@ -424,6 +432,7 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                   </a>
                 </div>
               ) : (
+              mode === "spot" ? (
                 <form onSubmit={handleOrderSubmit} className="space-y-4">
                   {orderError && (
                     <div className="p-3 bg-red-900/20 border border-red-500 rounded-md">
@@ -700,6 +709,9 @@ Spread: $${result.priceDetails?.spread?.toFixed(2) || 'N/A'}`);
                     </>
                   )}
                 </form>
+                  ) : (
+              <LeverageForm prices={prices} balance={balance} BACKEND_URL={BACKEND_URL} />
+            )
               )}
             </div>
           </div>

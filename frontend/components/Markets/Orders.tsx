@@ -21,6 +21,8 @@ interface Order {
   updatedAt: string;
   closedAt?: string;
   executedAt?: string;
+  margin: number;
+  leverage: number;
 }
 
 interface OrdersProps {
@@ -34,7 +36,7 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const BACKEND_URL = config.backend.url;
 
   useEffect(() => {
@@ -45,16 +47,16 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
 
   const fetchOrders = async () => {
     if (!isAuthenticated) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const token = Cookies.get('token');
       if (!token) return;
 
-      const url = limit 
-        ? `${BACKEND_URL}/api/v1/order?limit=${limit}` 
+      const url = limit
+        ? `${BACKEND_URL}/api/v1/order?limit=${limit}`
         : `${BACKEND_URL}/api/v1/order`;
 
       const response = await fetch(url, {
@@ -64,7 +66,7 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         setOrders(result.orders);
       } else {
@@ -177,19 +179,18 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
               // const isProfit = order.closePrice && order.marketPrice 
               //   ? (order.type === 'buy' ? order.closePrice > order.marketPrice : order.marketPrice > order.closePrice)
               //   : null;
-              
+
               return (
                 <div
                   key={order.id}
                   className="flex items-center justify-between p-4 bg-zinc-800 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-colors"
                 >
-        
+
                   <div className="flex items-center space-x-4">
-                    <div className={`p-2 rounded-full ${
-                      order.type === 'buy' 
-                        ? 'bg-green-900/50 text-green-400' 
+                    <div className={`p-2 rounded-full ${order.type === 'buy'
+                        ? 'bg-green-900/50 text-green-400'
                         : 'bg-red-900/50 text-red-400'
-                    }`}>
+                      }`}>
                       {order.type === 'buy' ? (
                         <TrendingUp className="h-4 w-4" />
                       ) : (
@@ -207,11 +208,11 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
                           <span className="ml-1">{order.status}</span>
                         </span>
                       </div>
-                      
+
                       <div className="text-sm text-gray-400 mt-1">
-                        {order.qty.toFixed(order.asset === 'btc' ? 8 : order.asset === 'eth' ? 6 : 4)} {formatAssetName(order.asset)} 
+                        {order.qty.toFixed(order.asset === 'btc' ? 8 : order.asset === 'eth' ? 6 : 4)} {formatAssetName(order.asset)}
                         {order.userAmount && (
-                          <span> at ${order.userAmount.toFixed(2)}</span>
+                          <span> at ${order.userAmount.toFixed(2) ?? order.leverage}</span>
                         )}
                         {
                           order.marketPrice && (
@@ -219,7 +220,7 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
                           )
                         }
                       </div>
-                      
+
                       <div className="text-xs text-gray-500 mt-1">
                         {executionTime.date} at {executionTime.time}
                       </div>
@@ -228,9 +229,12 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
 
                   <div className="text-right">
                     <div className="text-white font-medium">
-                      ${order.userAmount.toFixed(2)}
+                      ${order.userAmount != null
+                        ? order.userAmount.toFixed(2)
+                        : (order.margin ? Number(order.margin) : "0.00")}
                     </div>
-                    
+
+
                     {/* {order.status === 'CLOSED' && order.closePrice && order.marketPrice && (
                       <div className={`text-sm ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
                         {isProfit ? '+' : ''}$
@@ -248,7 +252,7 @@ export default function Orders({ className = '', showHeader = true, limit }: Ord
                 </div>
               );
             })}
-            
+
             {limit && orders.length >= limit && (
               <div className="text-center pt-4">
                 <a
