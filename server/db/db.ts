@@ -9,9 +9,22 @@ export const pool = new Pool({
 });
 
 pool.on('connect', () => {
-  console.log('  Connected to TimescaleDB from server');
+  console.log('Connected to TimescaleDB from server');
 });
 
 pool.on('error', (err) => {
   console.error('PostgreSQL pool error:', err);
 });
+
+pool.on('remove', (client) => {
+  console.log('Client removed from pool');
+});
+
+export async function closeDatabaseConnection() {
+  try {
+     await pool.end();
+     console.log('Database connection closed gracefully');
+   } catch (error) {
+     console.error('Error closing database connection:', error);
+   }
+ }

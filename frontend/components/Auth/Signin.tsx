@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, LogIn, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { SigninForm, signinSchema } from '@/zod/auth';
+import { SigninForm, signinSchema } from '@options-trading/backend-common';
 import { config } from '@/config/config';
 
 export default function SigninPage() {

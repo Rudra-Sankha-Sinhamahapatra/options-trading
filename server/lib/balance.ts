@@ -51,7 +51,7 @@ export function updateAssetBalance(
     balance[asset].qty = toScaledInt(qty, decimals);
 
     userBalances.set(userId, balance);
-    console.log(`📊 Updated ${asset} balance for user ${userId}: ${qty} (${type || 'N/A'})`);
+    console.log(`Updated ${asset} balance for user ${userId}: ${qty} (${type || 'N/A'})`);
     return balance;
 }
 

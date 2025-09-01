@@ -5,10 +5,10 @@ const SYMBOLS = ["BTCUSDC", "ETHUSDC", "SOLUSDC"];
 
 (async () => {  
     try {
-        console.log("🚀 Starting Price Poller Service");
+        console.log("Starting Price Poller Service");
         
         await initKafkaProducer();
-        console.log("  Kafka producer initialized");
+        console.log("Kafka producer initialized");
         
         startBinanceTradePoller(SYMBOLS);
         

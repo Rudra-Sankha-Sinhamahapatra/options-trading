@@ -1,6 +1,6 @@
 import type { Response, Request } from "express"
 import jwt from "jsonwebtoken"
-import { Signin, Signup } from "@options-trading/backend-common";
+import { signinSchema, signupSchema } from "@options-trading/backend-common";
 import bcrypt from "bcryptjs"
 import prisma from "@options-trading/db";
 import { JWT_SECRET } from "../config";
@@ -8,7 +8,7 @@ import type { AuthRequest } from "../middleware/auth";
 
 export const signup = async (req: Request, res: Response): Promise<void> => {
     try {
-        const result = Signup.safeParse(req.body);
+        const result = signupSchema.safeParse(req.body);
         if (!result.success) {
             res.status(400).json({
                 message: "Wrong inputs,zod validation failed",
@@ -73,7 +73,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 
 export const signin = async (req: Request, res: Response): Promise<void> => {
     try {
-        const result = Signin.safeParse(req.body);
+        const result = signinSchema.safeParse(req.body);
         if (!result.success) {
             res.status(400).json({
                 message: "Wrong inputs,zod validation failed",

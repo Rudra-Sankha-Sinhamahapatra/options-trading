@@ -140,7 +140,7 @@ export async function watchPrices() {
         } catch (err: any) {
           if (err.code === "P2025") {
             console.warn(
-              `⚠️ Trade ${tradeId} already closed or missing, skipping`
+              `Trade ${tradeId} already closed or missing, skipping`
             );
           } else {
             throw err;

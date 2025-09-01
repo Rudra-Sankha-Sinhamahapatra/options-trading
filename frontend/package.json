@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+   "@options-trading/backend-common": "workspace:*",
     "@hookform/resolvers": "^5.2.1",
     "js-cookie": "^3.0.5",
     "lightweight-charts": "^5.0.8",

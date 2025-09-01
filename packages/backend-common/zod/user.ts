@@ -1,12 +1,15 @@
-import z from "zod";
+import * as z from 'zod';
 
-export const Signup = z.object({
-  name: z.string().min(1).max(30),
-  email: z.string().email().min(1).max(40),
-  password: z.string().min(1).max(50),
+export const signinSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
 });
 
-export const Signin = z.object({
-  email: z.string().email().min(1).max(40),
-  password: z.string().min(1).max(50),
+export const signupSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
 });
+
+export type SigninForm = z.infer<typeof signinSchema>;
+export type SignupForm = z.infer<typeof signupSchema>;

@@ -34,10 +34,10 @@ wss.on("connection",(ws) => {
     ws.on('message', (message) => {
         try {
             const data = JSON.parse(message.toString());
-            console.log('📨 Received client message:', data);
+            console.log('Received client message:', data);
             
             if (data.type === 'subscribe' && Array.isArray(data.assets)) {
-                console.log('  Client subscribing to assets:', data.assets);
+                console.log('Client subscribing to assets:', data.assets);
                 data.assets.forEach((asset: string) => {
                     (ws as any).subscribedAssets.add(asset);
                 });

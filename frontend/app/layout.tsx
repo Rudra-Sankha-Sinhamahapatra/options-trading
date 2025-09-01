@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TradingPro - Options Trading Dashboard",
+  title: "TradingPro Options Trading Dashboard",
   description: "Real-time trading dashboard with advanced analytics",
 };
 

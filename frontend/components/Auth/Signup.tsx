@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, UserPlus, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { SignupForm, signupSchema } from '@/zod/auth';
+import { SignupForm, signupSchema } from '@options-trading/backend-common';
 import { config } from '@/config/config';
 
 export default function SignupPage() {

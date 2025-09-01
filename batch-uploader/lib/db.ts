@@ -9,7 +9,7 @@ export const pool = new Pool({
 });
 
 pool.on('connect', () => {
-  console.log('  Connected to TimescaleDB');
+  console.log('Connected to TimescaleDB');
 });
 
 pool.on('error', (err) => {
@@ -17,13 +17,13 @@ pool.on('error', (err) => {
 });
 
 pool.on('remove', (client) => {
-  console.log('🔌 Client removed from pool');
+  console.log('Client removed from pool');
 });
 
 export async function closeDatabaseConnection() {
  try {
     await pool.end();
-    console.log('  Database connection closed gracefully');
+    console.log('Database connection closed gracefully');
   } catch (error) {
     console.error('Error closing database connection:', error);
   }
@@ -38,7 +38,7 @@ export async function setupRetentionPolicy() {
         if (extensionCheck.rows.length === 0) {
             console.log('TimescaleDB extension not found, enabling it...');
             await pool.query('CREATE EXTENSION IF NOT EXISTS timescaledb;');
-            console.log('  TimescaleDB extension enabled');
+            console.log('TimescaleDB extension enabled');
         }
 
         let checkQuery;
@@ -46,28 +46,28 @@ export async function setupRetentionPolicy() {
             checkQuery = `
                 SELECT * FROM timescaledb_information.jobs 
                 WHERE job_type = 'retention' 
-                AND hypertable_name = 'ohlc_data';
+                AND hypertable_name = 'trade_ticks';
             `;
             const result = await pool.query(checkQuery);
             
             if (result.rows.length === 0) {
                 await pool.query(`
-                    SELECT add_retention_policy('ohlc_data', INTERVAL '30 days');
+                    SELECT add_retention_policy('trade_ticks', INTERVAL '24 hours');
                 `);
-                console.log('  Added 30-day retention policy to ohlc_data');
+                console.log('Added 24 hoursretention policy to trade_ticks');
             } else {
-                console.log('Retention policy already exists for ohlc_data');
+                console.log('Retention policy already exists for trade_ticks');
             }
         } catch (jobsError) {
             console.log('Using fallback method for retention policy');
             try {
                 await pool.query(`
-                    SELECT add_retention_policy('ohlc_data', INTERVAL '30 days');
+                    SELECT add_retention_policy('trade_ticks', INTERVAL '24 hours');
                 `);
-                console.log('Added 30-day retention policy to ohlc_data (fallback method)');
+                console.log('Added 24 hours retention policy to trade_ticks (fallback method)');
             } catch (addError:any) {
                 if (addError.message.includes('already exists') || addError.message.includes('already has')) {
-                    console.log('Retention policy already exists for ohlc_data');
+                    console.log('Retention policy already exists for trade_ticks');
                 } else {
                     throw addError;
                 }
@@ -85,7 +85,7 @@ export async function testConnection() {
       const client = await pool.connect();
       await client.query('SELECT NOW()');
       client.release();
-      console.log('  Database connection test successful');
+      console.log('Database connection test successful');
       return true;
     } catch (error) {
       retries--;

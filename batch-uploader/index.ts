@@ -1,5 +1,6 @@
 import { consumer, TOPICS } from "@options-trading/backend-common"
 import { batchInsertTicks, type TickRow } from "./lib/batchProcessor"
+import { closeDatabaseConnection } from "./lib/db"
 
 const BATCH: TickRow[] = []
 const BATCH_SIZE = 50
@@ -50,3 +51,15 @@ await consumer.run({
     scheduleFlush()
   }
 })
+
+process.on('SIGINT', async () => {
+  console.log('Received SIGINT, closing DB connection...');
+  await closeDatabaseConnection();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('Received SIGTERM, closing DB connection...');
+  await closeDatabaseConnection();
+  process.exit(0);
+});

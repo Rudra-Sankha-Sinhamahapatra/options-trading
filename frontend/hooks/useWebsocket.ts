@@ -60,7 +60,7 @@ const parseBBOData = (message: string): PriceUpdate | null => {
         askQty,
       };
       
-      console.log('  Successfully parsed price update:', priceUpdate);
+      console.log('Successfully parsed price update:', priceUpdate);
       return priceUpdate;
     } else {
       console.log('Invalid BBO format - expected "bbo SYMBOL TIMESTAMP BID BIDQTY ASK ASKQTY", got:', parts);
@@ -84,7 +84,7 @@ const notifyPriceUpdate = () => {
 };
 
 const notifyConnection = (connected: boolean) => {
-  console.log('📢 Notifying connection status:', connected, 'to', connectionCallbacks.size, 'subscribers');
+  console.log('Notifying connection status:', connected, 'to', connectionCallbacks.size, 'subscribers');
   connectionCallbacks.forEach(callback => {
     try {
       callback(connected);
@@ -95,7 +95,7 @@ const notifyConnection = (connected: boolean) => {
 };
 
 const notifyError = (error: string | null) => {
-  console.log('📢 Notifying error:', error, 'to', errorCallbacks.size, 'subscribers');
+  console.log('Notifying error:', error, 'to', errorCallbacks.size, 'subscribers');
   errorCallbacks.forEach(callback => {
     try {
       callback(error);
@@ -107,23 +107,23 @@ const notifyError = (error: string | null) => {
 
 const connectWebSocket = () => {
   if (wsInstance?.readyState === WebSocket.OPEN) {
-    console.log('🔌 WebSocket already connected');
+    console.log('WebSocket already connected');
     return;
   }
 
   if (wsInstance?.readyState === WebSocket.CONNECTING) {
-    console.log('🔌 WebSocket already connecting');
+    console.log('WebSocket already connecting');
     return;
   }
 
   try {
     const wsUrl = config.ws.url;
-    console.log('🔌 Creating new WebSocket connection to:', wsUrl);
+    console.log('Creating new WebSocket connection to:', wsUrl);
     
     wsInstance = new WebSocket(wsUrl);
 
     wsInstance.onopen = () => {
-      console.log('  WebSocket connected successfully');
+      console.log('WebSocket connected successfully');
       isConnectedGlobal = true;
       currentError = null;
       notifyConnection(true);
@@ -132,7 +132,7 @@ const connectWebSocket = () => {
 
     wsInstance.onmessage = (event) => {
       const rawMessage = typeof event.data === 'string' ? event.data : '';
-      console.log('📨 Received raw WebSocket message:', rawMessage);
+      console.log('Received raw WebSocket message:', rawMessage);
     
       try {
         let handled = false;
@@ -246,20 +246,20 @@ export function useWebSocket(): UseWebSocketReturn {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('🚀 WebSocket hook initializing...');
+    console.log('WebSocket hook initializing...');
     
     const priceCallback = (newPrices: Record<string, PriceUpdate>) => {
-      console.log('🔔 Price callback triggered with:', newPrices);
+      console.log('Price callback triggered with:', newPrices);
       setPrices(newPrices);
     };
     
     const connectionCallback = (connected: boolean) => {
-      console.log('🔔 Connection callback triggered:', connected);
+      console.log('Connection callback triggered:', connected);
       setIsConnected(connected);
     };
     
     const errorCallback = (error: string | null) => {
-      console.log('🔔 Error callback triggered:', error);
+      console.log('Error callback triggered:', error);
       setError(error);
     };
     
@@ -267,7 +267,7 @@ export function useWebSocket(): UseWebSocketReturn {
     connectionCallbacks.add(connectionCallback);
     errorCallbacks.add(errorCallback);
     
-    console.log('📝 Registered callbacks. Total callbacks:', {
+    console.log('Registered callbacks. Total callbacks:', {
       price: wsCallbacks.size,
       connection: connectionCallbacks.size,
       error: errorCallbacks.size
@@ -278,19 +278,19 @@ export function useWebSocket(): UseWebSocketReturn {
     setError(currentError);
     
     if (!wsInstance || wsInstance.readyState === WebSocket.CLOSED) {
-      console.log('🔌 Initiating WebSocket connection...');
+      console.log('Initiating WebSocket connection...');
       connectWebSocket();
     } else {
-      console.log('🔌 WebSocket already exists, state:', wsInstance.readyState);
+      console.log('WebSocket already exists, state:', wsInstance.readyState);
     }
     
     return () => {
-      console.log('🧹 Cleaning up WebSocket hook...');
+      console.log('Cleaning up WebSocket hook...');
    
       wsCallbacks.delete(priceCallback);
       connectionCallbacks.delete(connectionCallback);
       errorCallbacks.delete(errorCallback);
-      console.log('🧹 Removed callbacks. Remaining:', {
+      console.log('Removed callbacks. Remaining:', {
         price: wsCallbacks.size,
         connection: connectionCallbacks.size,
         error: errorCallbacks.size
@@ -299,7 +299,7 @@ export function useWebSocket(): UseWebSocketReturn {
   }, []);
 
   const subscribe = useCallback((assets: string[]) => {
-    console.log('  Subscribe called with assets:', assets);
+    console.log('Subscribe called with assets:', assets);
     
     if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
       const subscribeMessage = JSON.stringify({
@@ -315,7 +315,7 @@ export function useWebSocket(): UseWebSocketReturn {
   }, []);
 
   const unsubscribe = useCallback((assets: string[]) => {
-    console.log('  Unsubscribe called with assets:', assets);
+    console.log('Unsubscribe called with assets:', assets);
     
     if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
       const unsubscribeMessage = JSON.stringify({
@@ -323,7 +323,7 @@ export function useWebSocket(): UseWebSocketReturn {
         assets
       });
       
-      console.log('  Sending unsubscribe message:', unsubscribeMessage);
+      console.log('Sending unsubscribe message:', unsubscribeMessage);
       wsInstance.send(unsubscribeMessage);
     } else {
       console.log('Cannot unsubscribe - WebSocket not ready. State:', wsInstance?.readyState);
@@ -331,7 +331,7 @@ export function useWebSocket(): UseWebSocketReturn {
   }, []);
 
   useEffect(() => {
-    console.log('📊 Prices state in component updated:', prices);
+    console.log('Prices state in component updated:', prices);
   }, [prices]);
 
   return {

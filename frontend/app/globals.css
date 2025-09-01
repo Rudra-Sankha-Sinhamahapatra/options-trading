@@ -1,13 +1,10 @@
-/* globals.css */
 @import "tailwindcss";
 
-/* Dark theme variables for Tailwind v4 */
 :root {
-  --background: #000000;   /* true black */
-  --foreground: #e5e7eb;   /* gray-200-ish */
+  --background: #000000;   
+  --foreground: #e5e7eb;  
 }
 
-/* Ensure the page actually uses them */
 html, body {
   background: var(--background);
   color: var(--foreground);
